@@ -10,6 +10,7 @@ return new class extends Migration
     {
         Schema::table('leads', function (Blueprint $table) {
             $table->string('zone')->nullable()->after('status');
+            $table->index('zone');
         });
     }
 

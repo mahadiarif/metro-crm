@@ -13,7 +13,6 @@ return new class extends Migration
     {
         Schema::table('leads', function (Blueprint $table) {
             $table->index(['status', 'created_at']);
-            $table->index('zone');
         });
 
         Schema::table('sales', function (Blueprint $table) {
@@ -22,7 +21,7 @@ return new class extends Migration
         });
 
         Schema::table('visits', function (Blueprint $table) {
-            $table->index('visit_date');
+            $table->index('visited_at');
         });
 
         Schema::table('follow_ups', function (Blueprint $table) {
@@ -37,7 +36,6 @@ return new class extends Migration
     {
         Schema::table('leads', function (Blueprint $table) {
             $table->dropIndex(['status', 'created_at']);
-            $table->dropIndex(['zone']);
         });
 
         Schema::table('sales', function (Blueprint $table) {
@@ -46,7 +44,7 @@ return new class extends Migration
         });
 
         Schema::table('visits', function (Blueprint $table) {
-            $table->dropIndex(['visit_date']);
+            $table->dropIndex(['visited_at']);
         });
 
         Schema::table('follow_ups', function (Blueprint $table) {
