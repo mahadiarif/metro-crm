@@ -120,6 +120,22 @@ class Lead extends Model
     }
 
     /**
+     * Get the sales calls for the lead.
+     */
+    public function salesCalls(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(SalesCall::class)->latest();
+    }
+
+    /**
+     * Get the latest sales call for the lead.
+     */
+    public function latestCall(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(SalesCall::class)->latestOfMany();
+    }
+
+    /**
      * Get the proposals for the lead.
      */
     public function proposals(): HasMany

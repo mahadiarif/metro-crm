@@ -10,12 +10,12 @@ Route::middleware(['web', 'auth', 'tyro.role.protection'])->prefix('dashboard')-
     Route::get('/reports/visits', [\App\Http\Controllers\Dashboard\ReportController::class , 'visits'])->name('reports.visits');
     Route::get('/reports/leads', [\App\Http\Controllers\Dashboard\ReportController::class , 'leads'])->name('reports.leads');
 
-    // Override User Management to enforce RBAC logic
-    Route::resource('users', \App\Http\Controllers\UserController::class);
-    Route::post('users/{user}/suspend', [\App\Http\Controllers\UserController::class, 'suspend'])->name('users.suspend');
-    Route::post('users/{user}/unsuspend', [\App\Http\Controllers\UserController::class, 'unsuspend'])->name('users.unsuspend');
-    Route::post('users/{user}/reset-2fa', [\App\Http\Controllers\UserController::class, 'reset2fa'])->name('users.reset-2fa');
-    Route::post('users/{user}/login-as', [\App\Http\Controllers\UserController::class, 'loginAs'])->name('users.login-as');
+    // Override User Management to enforce RBAC logic - Renamed to avoid collision with package
+    Route::resource('user-admin', \App\Http\Controllers\UserController::class);
+    Route::post('user-admin/{user}/suspend', [\App\Http\Controllers\UserController::class, 'suspend'])->name('user-admin.suspend');
+    Route::post('user-admin/{user}/unsuspend', [\App\Http\Controllers\UserController::class, 'unsuspend'])->name('user-admin.unsuspend');
+    Route::post('user-admin/{user}/reset-2fa', [\App\Http\Controllers\UserController::class, 'reset2fa'])->name('user-admin.reset-2fa');
+    Route::post('user-admin/{user}/login-as', [\App\Http\Controllers\UserController::class, 'loginAs'])->name('user-admin.login-as');
 
     Route::post('/notes', [\App\Http\Controllers\Dashboard\NoteController::class , 'store'])->name('notes.store');
     Route::delete('/notes/{note}', [\App\Http\Controllers\Dashboard\NoteController::class , 'destroy'])->name('notes.destroy');
@@ -51,6 +51,9 @@ Route::middleware(['web', 'auth', 'tyro.role.protection'])->prefix('dashboard')-
     Route::get('/marketing/configuration', [\App\Http\Controllers\Dashboard\MarketingController::class, 'settings'])->name('marketing.configuration');
     Route::get('/leads/{lead}/visit-history', [\App\Http\Controllers\Dashboard\VisitHistoryController::class, 'getHistory'])->name('leads.visit-history');
     Route::get('/services/{service}/packages', [\App\Http\Controllers\Dashboard\ProductLookupController::class, 'getPackages'])->name('services.packages');
+
+    // Sales Call Feature
+    Route::get('/sales-calls', [\App\Http\Controllers\Dashboard\SalesCallController::class, 'index'])->name('sales-calls.index');
 
     // Lead Management
     Route::resource('leads', \App\Http\Controllers\LeadController::class);
