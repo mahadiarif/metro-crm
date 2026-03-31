@@ -8,6 +8,7 @@ use Illuminate\Support\Collection;
 interface LeadRepositoryInterface
 {
     public function all(): Collection;
+    public function filter(array $filters): Collection;
     public function find(int $id): ?Lead;
     public function create(array $data): Lead;
     public function update(int $id, array $data): bool;

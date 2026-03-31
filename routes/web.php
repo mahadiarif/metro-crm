@@ -51,4 +51,8 @@ Route::middleware(['web', 'auth', 'tyro.role.protection'])->prefix('dashboard')-
     Route::get('/marketing/configuration', [\App\Http\Controllers\Dashboard\MarketingController::class, 'settings'])->name('marketing.configuration');
     Route::get('/leads/{lead}/visit-history', [\App\Http\Controllers\Dashboard\VisitHistoryController::class, 'getHistory'])->name('leads.visit-history');
     Route::get('/services/{service}/packages', [\App\Http\Controllers\Dashboard\ProductLookupController::class, 'getPackages'])->name('services.packages');
+
+    // Lead Management
+    Route::resource('leads', \App\Http\Controllers\LeadController::class);
+    Route::post('leads/{lead}/assign', [\App\Http\Controllers\LeadController::class, 'assign'])->name('leads.assign');
 });

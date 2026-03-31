@@ -15,9 +15,11 @@ use Illuminate\Support\Facades\DB;
 use App\Models\QuarterlyTarget;
 use App\Domains\Marketing\Models\Campaign;
 use Illuminate\Database\Eloquent\Builder;
+use App\Jobs\ReportExportJob;
 
 class ReportController extends Controller
 {
+    const EXPORT_THRESHOLD = 500;
     /**
      * Sales Report with filtering, aggregates, and multi-format export.
      */
@@ -25,51 +27,43 @@ class ReportController extends Controller
     {
         $query = Sale::with(['lead', 'user', 'service']);
 
-        // ── Quick date presets ────────────────────────────────────────────────
-        if ($request->filled('quick')) {
+        // Date Range Filtering
+        if ($request->filled('start_date') || $request->filled('end_date')) {
+            try {
+                $start = $request->filled('start_date') ? Carbon::parse($request->start_date)->startOfDay() : null;
+                $end = $request->filled('end_date') ? Carbon::parse($request->end_date)->endOfDay() : null;
+
+                if ($start && $end) {
+                    $query->whereBetween('closed_at', [$start, $end]);
+                } elseif ($start) {
+                    $query->where('closed_at', '>=', $start);
+                } elseif ($end) {
+                    $query->where('closed_at', '<=', $end);
+                }
+            } catch (\Exception $e) {
+                // Invalid date format
+            }
+        } elseif ($request->filled('quick')) {
             match ($request->quick) {
-                    'today' => $query->whereDate('closed_at', Carbon::today()),
-                    'this_week' => $query->whereBetween('closed_at', [Carbon::now()->startOfWeek(), Carbon::now()->endOfWeek()]),
-                    'this_month' => $query->whereMonth('closed_at', Carbon::now()->month)
-                    ->whereYear('closed_at', Carbon::now()->year),
-                    default => null,
-                };
-        }
-        else {
-            // Manual date range (only if no quick preset)
-            if ($request->filled('start_date')) {
-                $query->whereDate('closed_at', '>=', $request->start_date);
-            }
-            if ($request->filled('end_date')) {
-                $query->whereDate('closed_at', '<=', $request->end_date);
-            }
+                'today' => $query->whereDate('closed_at', Carbon::today()),
+                'this_week' => $query->whereBetween('closed_at', [Carbon::now()->startOfWeek(), Carbon::now()->endOfWeek()]),
+                'this_month' => $query->whereMonth('closed_at', Carbon::now()->month)->whereYear('closed_at', Carbon::now()->year),
+                default => null,
+            };
         }
 
-        // ── Other filters ─────────────────────────────────────────────────────
-        if ($request->filled('user_id')) {
-            $query->where('user_id', $request->user_id);
-        }
-        if ($request->filled('service_id')) {
-            $query->where('service_id', $request->service_id);
-        }
-        // Lead status filter (joins through lead relationship)
-        if ($request->filled('lead_status')) {
-            $query->whereHas('lead', fn($q) => $q->where('status', $request->lead_status));
-        }
+        // Other filters
+        if ($request->filled('user_id')) $query->where('user_id', $request->user_id);
+        if ($request->filled('service_id')) $query->where('service_id', $request->service_id);
+        if ($request->filled('lead_status')) $query->whereHas('lead', fn($q) => $q->where('status', $request->lead_status));
+        if ($request->filled('zone')) $query->whereHas('lead', fn($q) => $q->where('zone', $request->zone));
 
-        // Zone/Territory filter (joins through lead relationship)
-        if ($request->filled('zone')) {
-            $query->whereHas('lead', fn($q) => $q->where('zone', $request->zone));
-        }
-
-        // ── Text Search ──────────────────────────────────────────────────────
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function (Builder $q) use ($search) {
                 $q->where('remarks', 'like', "%{$search}%")
                   ->orWhereHas('lead', function (Builder $ql) use ($search) {
-                      $ql->where('company_name', 'like', "%{$search}%")
-                         ->orWhere('client_name', 'like', "%{$search}%");
+                      $ql->where('company_name', 'like', "%{$search}%")->orWhere('client_name', 'like', "%{$search}%");
                   })
                   ->orWhereHas('user', function (Builder $qu) use ($search) {
                       $qu->where('name', 'like', "%{$search}%");
@@ -77,17 +71,17 @@ class ReportController extends Controller
             });
         }
 
-        // Export before paginating
+        // Handle Export
         if ($request->has('export')) {
-            $data = (clone $query)->latest('closed_at')->get();
-            return $this->exportSales($data, $request->export);
+            $count = (clone $query)->count();
+            if ($count > self::EXPORT_THRESHOLD) {
+                ReportExportJob::dispatch(auth()->user(), 'sales', $request->all(), $request->export);
+                return back()->with('success', 'Your large report is being generated in the background. You will be notified when it is ready.');
+            }
+            return $this->exportSales((clone $query)->latest('closed_at')->get(), $request->export);
         }
 
-        // Aggregates on full filtered result (not just this page)
-        $aggregates = (clone $query)
-            ->selectRaw('COUNT(*) as total_deals, COALESCE(SUM(amount), 0) as total_revenue')
-            ->first();
-
+        $aggregates = (clone $query)->selectRaw('COUNT(*) as total_deals, COALESCE(SUM(amount), 0) as total_revenue')->first();
         $sales = $query->latest('closed_at')->paginate(20)->withQueryString();
         $users = $this->getAccessibleUsers();
         $services = Service::all();
@@ -103,53 +97,41 @@ class ReportController extends Controller
     {
         $query = Visit::with(['lead', 'user', 'service']);
 
-        // ── Quick date presets ────────────────────────────────────────────────
-        if ($request->filled('quick')) {
+        // Date Range Filtering
+        if ($request->filled('start_date') || $request->filled('end_date')) {
+            try {
+                $start = $request->filled('start_date') ? Carbon::parse($request->start_date)->startOfDay() : null;
+                $end = $request->filled('end_date') ? Carbon::parse($request->end_date)->endOfDay() : null;
+
+                if ($start && $end) {
+                    $query->whereBetween('visit_date', [$start, $end]);
+                } elseif ($start) {
+                    $query->where('visit_date', '>=', $start);
+                } elseif ($end) {
+                    $query->where('visit_date', '<=', $end);
+                }
+            } catch (\Exception $e) {}
+        } elseif ($request->filled('quick')) {
             match ($request->quick) {
-                    'today' => $query->whereDate('visit_date', Carbon::today()),
-                    'this_week' => $query->whereBetween('visit_date', [Carbon::now()->startOfWeek(), Carbon::now()->endOfWeek()]),
-                    'this_month' => $query->whereMonth('visit_date', Carbon::now()->month)
-                    ->whereYear('visit_date', Carbon::now()->year),
-                    default => null,
-                };
-        }
-        else {
-            // Manual date range (only if no quick preset)
-            if ($request->filled('start_date')) {
-                $query->whereDate('visit_date', '>=', $request->start_date);
-            }
-            if ($request->filled('end_date')) {
-                $query->whereDate('visit_date', '<=', $request->end_date);
-            }
+                'today' => $query->whereDate('visit_date', Carbon::today()),
+                'this_week' => $query->whereBetween('visit_date', [Carbon::now()->startOfWeek(), Carbon::now()->endOfWeek()]),
+                'this_month' => $query->whereMonth('visit_date', Carbon::now()->month)->whereYear('visit_date', Carbon::now()->year),
+                default => null,
+            };
         }
 
-        // ── Other filters ─────────────────────────────────────────────────────
-        if ($request->filled('user_id')) {
-            $query->where('user_id', $request->user_id);
-        }
-        if ($request->filled('lead_id')) {
-            $query->where('lead_id', $request->lead_id);
-        }
-        if ($request->filled('service_id')) {
-            $query->where('service_id', $request->service_id);
-        }
-        // Lead status filter (joins through lead relationship)
-        if ($request->filled('lead_status')) {
-            $query->whereHas('lead', fn($q) => $q->where('status', $request->lead_status));
-        }
-        // Zone/Territory filter (joins through lead relationship)
-        if ($request->filled('zone')) {
-            $query->whereHas('lead', fn($q) => $q->where('zone', $request->zone));
-        }
+        if ($request->filled('user_id')) $query->where('user_id', $request->user_id);
+        if ($request->filled('lead_id')) $query->where('lead_id', $request->lead_id);
+        if ($request->filled('service_id')) $query->where('service_id', $request->service_id);
+        if ($request->filled('lead_status')) $query->whereHas('lead', fn($q) => $q->where('status', $request->lead_status));
+        if ($request->filled('zone')) $query->whereHas('lead', fn($q) => $q->where('zone', $request->zone));
 
-        // ── Text Search ──────────────────────────────────────────────────────
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function (Builder $q) use ($search) {
                 $q->where('meeting_notes', 'like', "%{$search}%")
                   ->orWhereHas('lead', function (Builder $ql) use ($search) {
-                      $ql->where('company_name', 'like', "%{$search}%")
-                         ->orWhere('client_name', 'like', "%{$search}%");
+                      $ql->where('company_name', 'like', "%{$search}%")->orWhere('client_name', 'like', "%{$search}%");
                   })
                   ->orWhereHas('user', function (Builder $qu) use ($search) {
                       $qu->where('name', 'like', "%{$search}%");
@@ -158,6 +140,11 @@ class ReportController extends Controller
         }
 
         if ($request->has('export')) {
+            $count = (clone $query)->count();
+            if ($count > self::EXPORT_THRESHOLD) {
+                ReportExportJob::dispatch(auth()->user(), 'visits', $request->all(), $request->export);
+                return back()->with('success', 'Your report is being generated in the background.');
+            }
             return $this->exportVisits((clone $query)->latest('visit_date')->get(), $request->export);
         }
 
@@ -175,41 +162,36 @@ class ReportController extends Controller
      */
     public function leads(Request $request)
     {
-        $query = Lead::with(['assignedUser', 'service']);
+        $query = Lead::with(['assignedUser', 'service', 'stage']);
 
-        // ── Quick date presets ────────────────────────────────────────────────
-        if ($request->filled('quick')) {
+        // Date Range Filtering
+        if ($request->filled('start_date') || $request->filled('end_date')) {
+            try {
+                $start = $request->filled('start_date') ? Carbon::parse($request->start_date)->startOfDay() : null;
+                $end = $request->filled('end_date') ? Carbon::parse($request->end_date)->endOfDay() : null;
+
+                if ($start && $end) {
+                    $query->whereBetween('created_at', [$start, $end]);
+                } elseif ($start) {
+                    $query->where('created_at', '>=', $start);
+                } elseif ($end) {
+                    $query->where('created_at', '<=', $end);
+                }
+            } catch (\Exception $e) {}
+        } elseif ($request->filled('quick')) {
             match ($request->quick) {
-                    'today' => $query->whereDate('created_at', Carbon::today()),
-                    'this_week' => $query->whereBetween('created_at', [Carbon::now()->startOfWeek(), Carbon::now()->endOfWeek()]),
-                    'this_month' => $query->whereMonth('created_at', Carbon::now()->month)
-                    ->whereYear('created_at', Carbon::now()->year),
-                    default => null,
-                };
-        }
-        else {
-            if ($request->filled('start_date')) {
-                $query->whereDate('created_at', '>=', $request->start_date);
-            }
-            if ($request->filled('end_date')) {
-                $query->whereDate('created_at', '<=', $request->end_date);
-            }
+                'today' => $query->whereDate('created_at', Carbon::today()),
+                'this_week' => $query->whereBetween('created_at', [Carbon::now()->startOfWeek(), Carbon::now()->endOfWeek()]),
+                'this_month' => $query->whereMonth('created_at', Carbon::now()->month)->whereYear('created_at', Carbon::now()->year),
+                default => null,
+            };
         }
 
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
-        if ($request->filled('user_id')) {
-            $query->where('assigned_user', $request->user_id);
-        }
-        if ($request->filled('service_id')) {
-            $query->where('service_id', $request->service_id);
-        }
-        if ($request->filled('zone')) {
-            $query->where('zone', $request->zone);
-        }
+        if ($request->filled('status')) $query->where('status', $request->status);
+        if ($request->filled('user_id')) $query->where('assigned_user', $request->user_id);
+        if ($request->filled('service_id')) $query->where('service_id', $request->service_id);
+        if ($request->filled('zone')) $query->where('zone', $request->zone);
 
-        // ── Text Search ──────────────────────────────────────────────────────
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function (Builder $q) use ($search) {
@@ -224,6 +206,11 @@ class ReportController extends Controller
         }
 
         if ($request->has('export')) {
+            $count = (clone $query)->count();
+            if ($count > self::EXPORT_THRESHOLD) {
+                ReportExportJob::dispatch(auth()->user(), 'leads', $request->all(), $request->export);
+                return back()->with('success', 'Your report is being generated in the background.');
+            }
             return $this->exportLeads((clone $query)->latest()->get(), $request->export);
         }
 
@@ -452,17 +439,13 @@ class ReportController extends Controller
     private function streamCsv(string $filename, callable $writer)
     {
         $headers = [
-            'Content-Type' => 'text/csv; charset=utf-8',
+            'Content-Type' => 'text/csv; charset=UTF-8',
             'Content-Disposition' => 'attachment; filename="' . $filename . '"',
-            'Pragma' => 'no-cache',
-            'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
-            'Expires' => '0',
         ];
 
         return response()->stream(function () use ($writer) {
             $file = fopen('php://output', 'w');
-            // UTF-8 BOM for Excel compatibility
-            fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF));
+            fprintf($file, "\xEF\xBB\xBF"); // UTF-8 BOM
             $writer($file);
             fclose($file);
         }, 200, $headers);
@@ -486,14 +469,17 @@ class ReportController extends Controller
 
     private function streamPdf(string $view, array $data)
     {
-        // Requires: composer require barryvdh/laravel-dompdf
-        // If not installed, we fall back to a printable HTML page instead.
         if (class_exists(\Barryvdh\DomPDF\Facade\Pdf::class)) {
-            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView($view, $data);
+            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView($view, $data)
+                ->setPaper('a4', 'landscape')
+                ->setOptions([
+                    'isHtml5ParserEnabled' => true,
+                    'isRemoteEnabled' => true,
+                    'defaultFont' => 'sans-serif'
+                ]);
             return $pdf->download($data['title'] . '_' . date('Y-m-d') . '.pdf');
         }
 
-        // Fallback: return a print-ready HTML page
         return response()->view($view, array_merge($data, ['printMode' => true]));
     }
 

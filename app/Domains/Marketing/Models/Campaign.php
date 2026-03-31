@@ -9,6 +9,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Campaign extends Model
 {
+    const STATUS_DRAFT = 'draft';
+    const STATUS_SCHEDULED = 'scheduled';
+    const STATUS_SENDING = 'sending';
+    const STATUS_SENT = 'sent';
+    const STATUS_FAILED = 'failed';
     protected $fillable = [
         'name',
         'type',

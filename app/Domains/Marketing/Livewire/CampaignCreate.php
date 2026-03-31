@@ -25,6 +25,11 @@ class CampaignCreate extends Component
     public $fromDate;
     public $toDate;
 
+    // Template Modal
+    public $showTemplateModal = false;
+    public $newTemplateName = '';
+    public $newTemplateContent = '';
+
     public $templateId;
     public $recipientCount = 0;
     public $sampleRecipients = [];
@@ -91,6 +96,41 @@ class CampaignCreate extends Component
         }
 
         return $query;
+    }
+
+    public function openTemplateModal()
+    {
+        $this->newTemplateName = '';
+        $this->newTemplateContent = $this->campaign_message;
+        $this->showTemplateModal = true;
+    }
+
+    public function closeTemplateModal()
+    {
+        $this->showTemplateModal = false;
+    }
+
+    public function saveTemplate()
+    {
+        $this->validate([
+            'newTemplateName' => 'required|string|max:255',
+            'newTemplateContent' => 'required|string',
+        ]);
+
+        $template = \App\Domains\Marketing\Models\MarketingTemplate::create([
+            'name' => $this->newTemplateName,
+            'content' => $this->newTemplateContent,
+            'type' => $this->type,
+        ]);
+
+        $this->templateId = $template->id;
+        $this->campaign_message = $template->content;
+        $this->showTemplateModal = false;
+
+        $this->dispatch('notify', [
+            'type' => 'success',
+            'message' => 'Template created successfully.'
+        ]);
     }
 
     public function createCampaign(CreateCampaignAction $createAction, SendSmsCampaignAction $smsAction, SendEmailCampaignAction $emailAction)

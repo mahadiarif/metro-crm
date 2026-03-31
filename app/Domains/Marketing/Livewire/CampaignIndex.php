@@ -10,6 +10,7 @@ class CampaignIndex extends Component
 {
     use WithPagination;
     public $search;
+    public $type;
 
     public function mount()
     {
@@ -22,7 +23,14 @@ class CampaignIndex extends Component
             ->withCount('recipients');
 
         if ($this->search) {
-            $query->where('name', 'like', '%' . $this->search . '%');
+            $query->where(function($q) {
+                $q->where('name', 'like', '%' . $this->search . '%')
+                  ->orWhere('message', 'like', '%' . $this->search . '%');
+            });
+        }
+
+        if ($this->type) {
+            $query->where('type', $this->type);
         }
 
         $campaigns = $query->latest()->paginate(10);
@@ -85,5 +93,31 @@ class CampaignIndex extends Component
                 'format' => 'pdf'
             ]);
         }
+    }
+
+    public function resetFilters()
+    {
+        $this->reset(['search', 'type']);
+    }
+
+    public function deleteCampaign($id)
+    {
+        $campaign = \App\Domains\Marketing\Models\Campaign::findOrFail($id);
+        $campaign->delete();
+        session()->flash('message', 'Campaign intelligence successfully purged.');
+    }
+
+    public function duplicateCampaign($id)
+    {
+        $original = \App\Domains\Marketing\Models\Campaign::findOrFail($id);
+        $new = $original->replicate();
+        $new->name = $original->name . ' (Clone)';
+        $new->status = 'draft';
+        $new->created_at = now();
+        $new->save();
+
+        // Optionally replicate recipients if business logic demands
+        
+        return redirect()->route('tyro-dashboard.marketing.campaigns.create', ['clone_id' => $new->id]);
     }
 }

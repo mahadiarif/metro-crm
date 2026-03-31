@@ -24,11 +24,20 @@ class UpdateLeadRequest extends FormRequest
         return [
             'company_name' => 'sometimes|required|string|max:255',
             'client_name' => 'sometimes|required|string|max:255',
+            'contact_person' => 'nullable|string|max:255',
+            'designation' => 'nullable|string|max:255',
+            'address' => 'nullable|string|max:500',
             'phone' => 'sometimes|required|string|max:20',
             'email' => 'nullable|email|max:255',
+            'existing_provider' => 'nullable|string|max:255',
+            'current_usage' => 'nullable|string',
             'service_id' => 'sometimes|required|exists:services,id',
+            'service_package_id' => 'nullable|exists:service_packages,id',
             'status' => 'sometimes|required|string|in:new,contacted,interested,closed,lost',
             'assigned_user' => 'nullable|exists:users,id',
+            'stage_id' => 'sometimes|required|exists:pipeline_stages,id',
+            'lead_date' => 'nullable|date',
+            'zone' => 'nullable|string|max:255',
         ];
     }
 }

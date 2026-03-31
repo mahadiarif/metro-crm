@@ -8,6 +8,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class CampaignRecipient extends Model
 {
+    const STATUS_PENDING = 'pending';
+    const STATUS_SENT = 'sent';
+    const STATUS_FAILED = 'failed';
     protected $fillable = [
         'campaign_id',
         'lead_id',

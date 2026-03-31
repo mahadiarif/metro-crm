@@ -9,7 +9,16 @@ use App\Domains\Leads\Repositories\LeadRepositoryInterface;
 use App\Http\Requests\StoreLeadRequest;
 use App\Http\Requests\UpdateLeadRequest;
 use App\Models\Lead;
-use Illuminate\Http\JsonResponse;
+use App\Models\LeadAssignmentLog;
+use App\Models\User;
+use App\Models\Service;
+use App\Models\PipelineStage;
+use App\Notifications\LeadAssignedNotification;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Database\QueryException;
+use Illuminate\View\View;
+use Illuminate\Http\RedirectResponse;
 
 class LeadController extends Controller
 {
@@ -18,80 +27,158 @@ class LeadController extends Controller
     ) {}
 
     /**
-     * Display a listing of the resource.
+     * Display a listing of the resource with multi-filtering.
      */
-    public function index(): JsonResponse
+    public function index(Request $request): View
     {
-        $leads = $this->repository->all();
-        return response()->json($leads);
+        $filters = $request->only([
+            'pipeline_stage_id',
+            'service_id',
+            'assigned_user_id',
+            'start_date',
+            'end_date',
+            'keyword'
+        ]);
+
+        $leads = $this->repository->filter($filters);
+        
+        $stages = PipelineStage::all();
+        $services = Service::all();
+        
+        $user = auth()->user();
+        if ($user->hasAnyRole(['super admin', 'manager'])) {
+            $users = User::all();
+        } elseif ($user->hasRole('team leader')) {
+            $users = $user->teamMembers()->get()->push($user);
+        } else {
+            $users = collect([$user]);
+        }
+
+        return view('leads.index', compact('leads', 'stages', 'services', 'users'));
+    }
+
+    /**
+     * Show the form for creating a new resource.
+     */
+    public function create(): View
+    {
+        $this->authorize('create', Lead::class);
+        $services = Service::all();
+        $stages = PipelineStage::all();
+        return view('leads.create', compact('services', 'stages'));
     }
 
     /**
      * Store a newly created resource in storage.
      */
-    public function store(StoreLeadRequest $request, CreateLeadAction $createLeadAction): JsonResponse
+    public function store(StoreLeadRequest $request, CreateLeadAction $createLeadAction): RedirectResponse
     {
-        $this->authorize('create', Lead::class);
-        $leadData = new LeadData(...$request->validated());
-        $lead = $createLeadAction->execute($leadData);
+        try {
+            $leadData = new LeadData(...$request->validated());
+            $lead = $createLeadAction->execute($leadData);
 
-        return response()->json($lead, 201);
+            return redirect()->route('leads.index')
+                ->with('success', 'Lead created successfully.');
+        } catch (QueryException $e) {
+            return back()->withInput()->with('error', 'Database error: ' . $this->getHumanFriendlyErrorMessage($e));
+        } catch (\Exception $e) {
+            return back()->withInput()->with('error', 'An unexpected error occurred.');
+        }
     }
 
     /**
-     * Display the specified resource.
+     * Show the form for editing the specified resource.
      */
-    public function show(int $id): JsonResponse
+    public function edit(int $id): View
     {
         $lead = $this->repository->find($id);
+        $this->authorize('update', $lead);
         
-        if ($lead) {
-            $this->authorize('view', $lead);
-        }
+        $services = Service::all();
+        $stages = PipelineStage::all();
         
-        if (!$lead) {
-            return response()->json(['message' => 'Lead not found'], 404);
-        }
-
-        return response()->json($lead->load(['service', 'assignedUser', 'visits', 'followUps']));
+        return view('leads.edit', compact('lead', 'services', 'stages'));
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(UpdateLeadRequest $request, int $id, UpdateLeadAction $updateLeadAction): JsonResponse
+    public function update(UpdateLeadRequest $request, int $id, UpdateLeadAction $updateLeadAction): RedirectResponse
     {
         $lead = $this->repository->find($id);
-        if ($lead) {
-            $this->authorize('update', $lead);
-        }
-        
-        $leadData = new LeadData(...$request->validated());
-        $success = $updateLeadAction->execute($id, $leadData);
+        $this->authorize('update', $lead);
 
-        if (!$success) {
-            return response()->json(['message' => 'Failed to update lead'], 500);
-        }
+        try {
+            $leadData = new LeadData(...$request->validated());
+            $updateLeadAction->execute($id, $leadData);
 
-        return response()->json($this->repository->find($id));
+            return redirect()->route('leads.index')
+                ->with('success', 'Lead updated successfully.');
+        } catch (QueryException $e) {
+            return back()->withInput()->with('error', 'Database error: ' . $this->getHumanFriendlyErrorMessage($e));
+        } catch (\Exception $e) {
+            return back()->withInput()->with('error', 'An unexpected error occurred.');
+        }
     }
 
     /**
-     * Remove the specified resource from storage.
+     * Assign lead to a user and log history.
      */
-    public function destroy(int $id): JsonResponse
+    public function assign(Request $request, int $id): RedirectResponse
     {
         $lead = $this->repository->find($id);
-        if ($lead) {
-            $this->authorize('delete', $lead);
-        }
+        $this->authorize('update', $lead);
+
+        $request->validate([
+            'assigned_to' => 'required|exists:users,id'
+        ]);
+
+        $user = auth()->user();
+        $assigneeId = $request->input('assigned_to');
         
-        $success = $this->repository->delete($id);
-
-        if (!$success) {
-            return response()->json(['message' => 'Failed to delete lead'], 500);
+        // RBAC check for assignment options
+        if ($user->hasRole('team leader')) {
+            $allowedUserIds = $user->teamMembers()->pluck('id')->push($user->id)->toArray();
+            if (!in_array($assigneeId, $allowedUserIds)) {
+                return back()->with('error', 'You can only assign leads to your team members.');
+            }
         }
 
-        return response()->json(null, 204);
+        DB::beginTransaction();
+        try {
+            $oldAssignee = $lead->assigned_user;
+            $lead->assigned_user = $assigneeId;
+            $lead->save();
+
+            // Log entry
+            LeadAssignmentLog::create([
+                'lead_id' => $lead->id,
+                'assigned_from' => $oldAssignee,
+                'assigned_to' => $assigneeId,
+                'assigned_by' => $user->id,
+            ]);
+
+            DB::commit();
+
+            // Notify assignee
+            $assignee = User::find($assigneeId);
+            $assignee->notify(new LeadAssignedNotification($lead, $user));
+
+            return back()->with('success', 'Lead assigned successfully to ' . $assignee->name);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Failed to assign lead: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Helper to parse query exceptions.
+     */
+    protected function getHumanFriendlyErrorMessage(QueryException $e): string
+    {
+        if ($e->getCode() == 23000) {
+            return 'A record with similar details already exists (Unique constraint violation).';
+        }
+        return 'Data integrity violation or constraint error.';
     }
 }

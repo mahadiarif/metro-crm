@@ -44,4 +44,16 @@ class CampaignShow extends Component
             ]
         ]);
     }
+
+    public function duplicateCampaign($id)
+    {
+        $original = \App\Domains\Marketing\Models\Campaign::findOrFail($id);
+        $new = $original->replicate();
+        $new->name = $original->name . ' (Clone)';
+        $new->status = 'draft';
+        $new->created_at = now();
+        $new->save();
+
+        return redirect()->route('tyro-dashboard.marketing.campaigns.create', ['clone_id' => $new->id]);
+    }
 }

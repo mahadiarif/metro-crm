@@ -18,7 +18,9 @@ class AnalyticsService
      */
     public function getSalesFunnel(): array
     {
-        return PipelineStage::withCount('leads')
+        return PipelineStage::withCount(['leads' => function ($query) {
+                $query->accessible();
+            }])
             ->orderBy('order_column')
             ->get()
             ->map(fn($stage) => [
@@ -92,7 +94,7 @@ class AnalyticsService
     public function getMonthlyRevenueTrend(): array
     {
         return Sale::accessible()
-            ->selectRaw("TO_CHAR(created_at, 'YYYY-MM') as month, SUM(amount) as revenue")
+            ->selectRaw("DATE_FORMAT(created_at, '%Y-%m') as month, SUM(amount) as revenue")
             ->where('created_at', '>=', Carbon::now()->subMonths(12))
             ->groupBy('month')
             ->orderBy('month')
@@ -108,7 +110,6 @@ class AnalyticsService
     {
         return Lead::accessible()
             ->join('pipeline_stages', 'leads.stage_id', '=', 'pipeline_stages.id')
-            ->join('services', 'leads.service_id', '=', 'services.id')
             ->selectRaw('SUM(pipeline_stages.win_probability / 100 * 5000) as prospective_revenue') 
             ->value('prospective_revenue') ?? 0.0;
     }

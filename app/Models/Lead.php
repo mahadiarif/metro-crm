@@ -54,7 +54,16 @@ class Lead extends Model
         'assigned_user',
         'stage_id',
         'lead_date',
+        'is_unsubscribed',
     ];
+
+    /**
+     * Scope a query to only include leads that have NOT unsubscribed.
+     */
+    public function scopeSubscribed($query)
+    {
+        return $query->where('is_unsubscribed', false);
+    }
 
     public function stage(): BelongsTo
     {
