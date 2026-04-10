@@ -85,7 +85,60 @@
         @if(!empty($resourcesToRender))
         <div class="sidebar-section">
             <div class="sidebar-section-title">SALES</div>
+            
             @foreach($resourcesToRender as $key => $resource)
+                @if(in_array($key, ['services', 'service-packages'])) @continue @endif
+                @php
+                    // Check access (logic duplicated from Controller for view)
+                    $canAccess = true;
+                    if (isset($resource['roles']) && !empty($resource['roles'])) {
+                        $canAccess = false;
+                        if ($user && method_exists($user, 'tyroRoleSlugs')) {
+                            $userRoles = $user->tyroRoleSlugs();
+                            // Check allowed roles
+                            foreach ($resource['roles'] as $role) {
+                                if (in_array($role, $userRoles)) {
+                                    $canAccess = true;
+                                    break;
+                                }
+                            }
+                            // Check readonly roles (if not already allowed)
+                            if (!$canAccess && isset($resource['readonly']) && !empty($resource['readonly'])) {
+                                foreach ($resource['readonly'] as $role) {
+                                    if (in_array($role, $userRoles)) {
+                                        $canAccess = true;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                @endphp
+                
+                @if($canAccess)
+                @php
+                    $route = isset($resource['custom_route']) ? route($resource['custom_route']) : route('tyro-dashboard.resources.index', $key);
+                    $isActive = isset($resource['custom_route']) ? request()->routeIs($resource['custom_route']) : request()->is('*resources/'.$key.'*');
+                @endphp
+                <a href="{{ $route }}" class="sidebar-link {{ $isActive ? 'active' : '' }}">
+                    @if(isset($resource['icon']))
+                        {!! $resource['icon'] !!}
+                    @else
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                        </svg>
+                    @endif
+                    {{ $resource['title'] }}
+                </a>
+                @endif
+            @endforeach
+        </div>
+
+        <div class="sidebar-section">
+            <div class="sidebar-section-title">PRODUCTS</div>
+            
+            @foreach($resourcesToRender as $key => $resource)
+                @if(!in_array($key, ['services', 'service-packages'])) @continue @endif
                 @php
                     // Check access (logic duplicated from Controller for view)
                     $canAccess = true;

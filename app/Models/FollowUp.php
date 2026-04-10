@@ -34,7 +34,7 @@ class FollowUp extends Model
         });
     }
 
-    protected $fillable = ['lead_id', 'user_id', 'scheduled_at', 'completed_at', 'notes'];
+    protected $fillable = ['lead_id', 'user_id', 'scheduled_at', 'completed_at', 'notes', 'source_type', 'source_id', 'status'];
 
     protected $casts = [
         'scheduled_at' => 'datetime',

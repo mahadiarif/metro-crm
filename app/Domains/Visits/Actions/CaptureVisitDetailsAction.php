@@ -23,6 +23,7 @@ class CaptureVisitDetailsAction
                 'address' => $clientInfo['address'] ?? $visit->lead->address,
                 'existing_provider' => $clientInfo['existing_provider'] ?? $visit->lead->existing_provider,
                 'current_usage' => $clientInfo['current_usage'] ?? $visit->lead->current_usage,
+                'source' => $clientInfo['source'] ?? $visit->lead->source,
             ]);
 
             // Sync Service Interests

@@ -12,6 +12,15 @@ class Lead extends Model
 {
     use HasFactory;
 
+    const STATUS_UNQUALIFIED = 'unqualified';
+    const STATUS_ACTIVE = 'active';
+    const STATUS_IN_PIPELINE = 'in_pipeline';
+    const STATUS_CLOSED = 'closed';
+
+    const TEMP_HOT = 'hot';
+    const TEMP_WARM = 'warm';
+    const TEMP_COLD = 'cold';
+
     protected static function booted()
     {
         static::addGlobalScope('role_access', function (Builder $builder) {
@@ -51,11 +60,47 @@ class Lead extends Model
         'service_id',
         'service_package_id',
         'status',
+        'close_reason',
+        'last_called_at',
         'assigned_user',
         'stage_id',
         'lead_date',
         'is_unsubscribed',
+        'lead_status',
+        'visit_count',
+        'source',
+        'lead_temperature',
+        'next_followup_at',
     ];
+
+    /**
+     * The attributes that should be cast.
+     *
+     * @var array
+     */
+    protected $casts = [
+        'last_called_at' => 'datetime',
+        'next_followup_at' => 'datetime',
+        'is_unsubscribed' => 'boolean',
+    ];
+
+    /**
+     * Status Scopes
+     */
+    public function scopeActive($query)
+    {
+        return $query->where('status', 'active');
+    }
+
+    public function scopeClosed($query)
+    {
+        return $query->where('status', 'closed');
+    }
+
+    public function scopeInPipeline($query)
+    {
+        return $query->where('status', 'in_pipeline');
+    }
 
     /**
      * Scope a query to only include leads that have NOT unsubscribed.
@@ -141,6 +186,30 @@ class Lead extends Model
     public function proposals(): HasMany
     {
         return $this->hasMany(Proposal::class)->latest();
+    }
+
+    /**
+     * Get all services and their individual statuses for this lead.
+     */
+    public function serviceStatuses(): HasMany
+    {
+        return $this->hasMany(LeadServiceStatus::class);
+    }
+
+    /**
+     * Get all daily sales visit master records for the lead.
+     */
+    public function dailySalesVisits(): HasMany
+    {
+        return $this->hasMany(DailySalesVisit::class);
+    }
+
+    /**
+     * Get all visit entries through the master record.
+     */
+    public function salesVisitEntries(): \Illuminate\Database\Eloquent\Relations\HasManyThrough
+    {
+        return $this->hasManyThrough(SalesVisitEntry::class, DailySalesVisit::class);
     }
 
     /**

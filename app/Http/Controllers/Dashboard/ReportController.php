@@ -25,7 +25,8 @@ class ReportController extends Controller
      */
     public function sales(Request $request)
     {
-        $query = Sale::with(['lead', 'user', 'service']);
+        $accessibleUserIds = $this->getAccessibleUsers()->pluck('id');
+        $query = Sale::with(['lead', 'user', 'service'])->whereIn('user_id', $accessibleUserIds);
 
         // Date Range Filtering
         if ($request->filled('start_date') || $request->filled('end_date')) {
@@ -95,7 +96,8 @@ class ReportController extends Controller
      */
     public function visits(Request $request)
     {
-        $query = Visit::with(['lead', 'user', 'service']);
+        $accessibleUserIds = $this->getAccessibleUsers()->pluck('id');
+        $query = Visit::with(['lead', 'user', 'service'])->whereIn('user_id', $accessibleUserIds);
 
         // Date Range Filtering
         if ($request->filled('start_date') || $request->filled('end_date')) {
@@ -162,7 +164,8 @@ class ReportController extends Controller
      */
     public function leads(Request $request)
     {
-        $query = Lead::with(['assignedUser', 'service', 'stage']);
+        $accessibleUserIds = $this->getAccessibleUsers()->pluck('id');
+        $query = Lead::with(['assignedUser', 'service', 'stage'])->whereIn('assigned_user', $accessibleUserIds);
 
         // Date Range Filtering
         if ($request->filled('start_date') || $request->filled('end_date')) {
@@ -236,6 +239,11 @@ class ReportController extends Controller
             ->whereBetween('closed_at', [$startOfMonth, $endOfMonth])
             ->sum('amount'),
         ];
+
+        // Security check: Can the current user see this person's performance?
+        if (!$this->getAccessibleUsers()->pluck('id')->contains($user->id)) {
+            abort(403, 'Unauthorized access to user performance.');
+        }
 
         // Calculate conversion rate
         $stats['conversion_rate'] = $stats['total_leads'] > 0
@@ -572,7 +580,7 @@ class ReportController extends Controller
         return view('vendor.tyro-dashboard.reports.quarterly');
     }
 
-    private function getAccessibleUsers()
+    protected function getAccessibleUsers()
     {
         $user = auth()->user();
         if (!$user) return collect();
@@ -612,7 +620,9 @@ class ReportController extends Controller
                 4 => [10, 11, 12],
             };
 
+            $accessibleUserIds = $this->getAccessibleUsers()->pluck('id');
             $salesQuery = Sale::whereYear('created_at', $year)
+                ->whereIn('user_id', $accessibleUserIds)
                 ->whereIn(\DB::raw('EXTRACT(MONTH FROM created_at)'), $months);
             
             if ($userId) {
@@ -625,7 +635,8 @@ class ReportController extends Controller
 
             $achieved = $salesQuery->sum('amount');
 
-            $targetQuery = QuarterlyTarget::where('year', $year)->where('quarter', $q);
+            $targetQuery = QuarterlyTarget::where('year', $year)->where('quarter', $q)
+                ->whereIn('user_id', $accessibleUserIds);
             if ($userId) {
                 $targetQuery->where('user_id', $userId);
             } elseif ($teamLeaderId) {
@@ -693,6 +704,10 @@ class ReportController extends Controller
         }
 
         $campaigns = $query->latest()->get();
+
+        // Safety Filter: Only show campaigns user has access to
+        $accessibleUserIds = $this->getAccessibleUsers()->pluck('id');
+        $campaigns = $campaigns->filter(fn($c) => $accessibleUserIds->contains($c->created_by));
 
         if ($format === 'pdf') {
             return $this->streamPdf('vendor.tyro-dashboard.reports.pdf.campaigns', [

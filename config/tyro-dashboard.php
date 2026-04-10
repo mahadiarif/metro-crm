@@ -201,21 +201,11 @@ return [
      */
     'resources' => [
         'visits' => [
-            'model' => 'App\Models\Visit',
-            'title' => 'Sales Visit',
+            'model' => 'App\Models\SalesVisitEntry',
+            'title' => 'Sales Visit', 
             'icon' => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>',
             'roles' => ['super-admin', 'admin', 'manager', 'team-leader', 'marketing-executive'],
-            'fields' => [
-                'lead_id' => ['type' => 'select', 'label' => 'Lead', 'relationship' => 'lead', 'option_label' => 'company_name', 'rules' => 'required'],
-                'user_id' => ['type' => 'select', 'label' => 'Marketing Exe', 'relationship' => 'user', 'option_label' => 'name', 'rules' => 'required'],
-                'visit_date' => ['type' => 'date', 'label' => 'Visit Date', 'rules' => 'required'],
-                'visit_stage' => ['type' => 'select', 'label' => 'Visit Stage', 'options' => ['1st Visit' => '1st Visit', '2nd Visit' => '2nd Visit', '3rd Visit' => '3rd Visit', '4th Visit' => '4th Visit'], 'rules' => 'required'],
-                'service_id' => ['type' => 'select', 'label' => 'Offered Product', 'relationship' => 'service', 'option_label' => 'name'],
-                'meeting_notes' => ['type' => 'textarea', 'label' => 'Meeting Notes'],
-                'interest_summary_status' => ['type' => 'select', 'label' => 'Interest Status', 'options' => ['follow_up' => 'Follow up', 'proposal_request' => 'Proposal request', 'closed' => 'Closed']],
-                'next_followup_date' => ['type' => 'date', 'label' => 'Next Follow-up'],
-                'location' => ['type' => 'text', 'label' => 'Location'],
-            ],
+            'custom_route' => 'tyro-dashboard.sales-visits.index',
         ],
         'calls' => [
             'model' => 'App\Models\SalesCall',

@@ -6,6 +6,14 @@ Route::get('/', function () {
     return redirect()->route('tyro-dashboard.index');
 });
 Route::middleware(['web', 'auth', 'tyro.role.protection'])->prefix('dashboard')->name('tyro-dashboard.')->group(function () {
+    // Redirect legacy resource paths to our new modern UI
+    Route::get('/resources/visits/create', function() { return redirect()->route('tyro-dashboard.sales-visits.create'); });
+    Route::get('/resources/visits/{visit}/edit', function(\App\Models\Visit $visit) { return redirect()->route('tyro-dashboard.sales-visits.edit', $visit); });
+
+    // Force modern UI for Sales Visits by overriding Tyro's resource paths
+    Route::get('/resources/visits/create', [\App\Http\Controllers\Dashboard\SalesVisitController::class, 'create'])->name('resources.visits.create');
+    Route::get('/resources/visits/{visit}/edit', [\App\Http\Controllers\Dashboard\SalesVisitController::class, 'edit'])->name('resources.visits.edit');
+
     Route::get('/reports/sales', [\App\Http\Controllers\Dashboard\ReportController::class , 'sales'])->name('reports.sales');
     Route::get('/reports/visits', [\App\Http\Controllers\Dashboard\ReportController::class , 'visits'])->name('reports.visits');
     Route::get('/reports/leads', [\App\Http\Controllers\Dashboard\ReportController::class , 'leads'])->name('reports.leads');
@@ -52,10 +60,12 @@ Route::middleware(['web', 'auth', 'tyro.role.protection'])->prefix('dashboard')-
     Route::get('/leads/{lead}/visit-history', [\App\Http\Controllers\Dashboard\VisitHistoryController::class, 'getHistory'])->name('leads.visit-history');
     Route::get('/services/{service}/packages', [\App\Http\Controllers\Dashboard\ProductLookupController::class, 'getPackages'])->name('services.packages');
 
-    // Sales Call Feature
-    Route::get('/sales-calls', [\App\Http\Controllers\Dashboard\SalesCallController::class, 'index'])->name('sales-calls.index');
+    // Sales Modules (Expert Resource Deployment)
+    Route::resource('sales-calls', \App\Http\Controllers\Dashboard\SalesCallController::class);
+    Route::resource('sales-visits', \App\Http\Controllers\Dashboard\SalesVisitController::class);
 
     // Lead Management
     Route::resource('leads', \App\Http\Controllers\LeadController::class);
     Route::post('leads/{lead}/assign', [\App\Http\Controllers\LeadController::class, 'assign'])->name('leads.assign');
+    Route::post('leads/{lead}/reopen', [\App\Http\Controllers\Dashboard\SalesCallController::class, 'reopen'])->name('leads.reopen');
 });

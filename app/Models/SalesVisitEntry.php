@@ -3,14 +3,13 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class SalesCall extends Model
+class SalesVisitEntry extends Model
 {
     protected static function booted()
     {
-        static::addGlobalScope('role_access', function (Builder $builder) {
+        static::addGlobalScope('role_access', function (\Illuminate\Database\Eloquent\Builder $builder) {
             if (auth()->check()) {
                 $user = auth()->user();
                 $currentStr = strtolower($user->role ?? '');
@@ -19,30 +18,29 @@ class SalesCall extends Model
                 $isSuperAdmin = in_array($currentStr, ['super admin', 'super_admin', 'super-admin', 'admin']) || in_array('super_admin', $tyroRoles) || in_array('super-admin', $tyroRoles) || in_array('admin', $tyroRoles);
                 $isManager    = in_array($currentStr, ['manager']) || in_array('manager', $tyroRoles);
                 $isTeamLeader = in_array($currentStr, ['team leader', 'team_leader', 'team-leader']) || in_array('team_leader', $tyroRoles) || in_array('team-leader', $tyroRoles);
-                $isExecutive  = in_array($currentStr, ['marketing executive', 'marketing_executive', 'marketing-executive']) || in_array('marketing_executive', $tyroRoles) || in_array('marketing-executive', $tyroRoles);
                 
                 if ($isSuperAdmin || $isManager) {
                     // Sees everything
                 } elseif ($isTeamLeader) {
                     $teamMemberIds = $user->teamMembers()->pluck('id')->push($user->id)->toArray();
-                    $builder->whereIn('user_id', $teamMemberIds);
+                    $builder->whereIn('marketing_exe_id', $teamMemberIds);
                 } else {
-                    // Default fallback for Executives: ONLY see their own data
-                    $builder->where('user_id', $user->id);
+                    $builder->where('marketing_exe_id', $user->id);
                 }
             }
         });
     }
-
     protected $fillable = [
-        'lead_id',
-        'user_id',
-        'outcome',
-        'call_status',
+        'daily_sales_visit_id', 
+        'visit_number', 
+        'visit_date', 
+        'service_type', 
+        'status', 
         'notes',
-        'called_at',
-        'next_call_at',
-        'next_followup_date',
+        'location',
+        'next_followup_at',
+        'marketing_exe_id',
+        'visit_stage',
         'address',
         'contact_person',
         'designation',
@@ -54,31 +52,28 @@ class SalesCall extends Model
     ];
 
     protected $casts = [
-        'called_at' => 'datetime',
-        'next_call_at' => 'datetime',
+        'visit_date' => 'date',
+        'next_followup_at' => 'date',
     ];
 
     /**
-     * Get the service usages recorded for this call.
+     * Get the service usage records for this specific visit entry.
      */
     public function serviceUsages(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
-        return $this->hasMany(ServiceUsage::class, 'sales_call_id');
+        return $this->hasMany(ServiceUsage::class, 'sales_visit_entry_id');
+    }
+
+    public function dailySalesVisit(): BelongsTo
+    {
+        return $this->belongsTo(DailySalesVisit::class);
     }
 
     /**
-     * Get the lead associated with the call.
+     * Get the marketing executive who performed the visit.
      */
-    public function lead(): BelongsTo
+    public function marketingExe(): BelongsTo
     {
-        return $this->belongsTo(Lead::class);
-    }
-
-    /**
-     * Get the user (executor) who made the call.
-     */
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'marketing_exe_id');
     }
 }

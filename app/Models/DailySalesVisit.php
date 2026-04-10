@@ -3,14 +3,14 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class SalesCall extends Model
+class DailySalesVisit extends Model
 {
     protected static function booted()
     {
-        static::addGlobalScope('role_access', function (Builder $builder) {
+        static::addGlobalScope('role_access', function (\Illuminate\Database\Eloquent\Builder $builder) {
             if (auth()->check()) {
                 $user = auth()->user();
                 $currentStr = strtolower($user->role ?? '');
@@ -19,7 +19,6 @@ class SalesCall extends Model
                 $isSuperAdmin = in_array($currentStr, ['super admin', 'super_admin', 'super-admin', 'admin']) || in_array('super_admin', $tyroRoles) || in_array('super-admin', $tyroRoles) || in_array('admin', $tyroRoles);
                 $isManager    = in_array($currentStr, ['manager']) || in_array('manager', $tyroRoles);
                 $isTeamLeader = in_array($currentStr, ['team leader', 'team_leader', 'team-leader']) || in_array('team_leader', $tyroRoles) || in_array('team-leader', $tyroRoles);
-                $isExecutive  = in_array($currentStr, ['marketing executive', 'marketing_executive', 'marketing-executive']) || in_array('marketing_executive', $tyroRoles) || in_array('marketing-executive', $tyroRoles);
                 
                 if ($isSuperAdmin || $isManager) {
                     // Sees everything
@@ -27,58 +26,37 @@ class SalesCall extends Model
                     $teamMemberIds = $user->teamMembers()->pluck('id')->push($user->id)->toArray();
                     $builder->whereIn('user_id', $teamMemberIds);
                 } else {
-                    // Default fallback for Executives: ONLY see their own data
                     $builder->where('user_id', $user->id);
                 }
             }
         });
     }
-
     protected $fillable = [
-        'lead_id',
-        'user_id',
-        'outcome',
-        'call_status',
-        'notes',
-        'called_at',
-        'next_call_at',
-        'next_followup_date',
-        'address',
-        'contact_person',
-        'designation',
-        'phone',
-        'email',
-        'source',
-        'existing_provider',
-        'current_usage'
+        'lead_id', 'user_id', 'company_name', 'address', 'latitude', 'longitude', 
+        'contact_person', 'designation', 'contact_number', 'email', 'lead_source', 
+        'competitor_provider', 'current_service_usage', 'visit_image', 
+        'visit_status', 'next_followup_date', 'followup_type', 'notes',
+        'lead_temperature', 'pain_points'
     ];
 
     protected $casts = [
-        'called_at' => 'datetime',
-        'next_call_at' => 'datetime',
+        'latitude' => 'decimal:8',
+        'longitude' => 'decimal:8',
+        'pain_points' => 'array',
     ];
 
-    /**
-     * Get the service usages recorded for this call.
-     */
-    public function serviceUsages(): \Illuminate\Database\Eloquent\Relations\HasMany
-    {
-        return $this->hasMany(ServiceUsage::class, 'sales_call_id');
-    }
-
-    /**
-     * Get the lead associated with the call.
-     */
     public function lead(): BelongsTo
     {
         return $this->belongsTo(Lead::class);
     }
 
-    /**
-     * Get the user (executor) who made the call.
-     */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function entries(): HasMany
+    {
+        return $this->hasMany(SalesVisitEntry::class);
     }
 }

@@ -81,6 +81,21 @@ class User extends Authenticatable
     }
 
     /**
+     * Role check helpers
+     */
+    public function isManager(): bool
+    {
+        return in_array('manager', $this->tyroRoleSlugs());
+    }
+
+    public function isSuperAdmin(): bool
+    {
+        return in_array('super_admin', $this->tyroRoleSlugs()) || 
+               in_array('admin', $this->tyroRoleSlugs()) || 
+               in_array('super-admin', $this->tyroRoleSlugs());
+    }
+
+    /**
      * Get the role attribute for backward compatibility.
      */
     public function getRoleAttribute(): string

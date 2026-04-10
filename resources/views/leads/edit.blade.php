@@ -11,6 +11,18 @@
 @endsection
 
 @section('content')
+@if(request()->has('action') && request()->action === 'log_visit')
+    <div class="alert alert-info shadow-sm mb-6 border-0 rounded-xl d-flex align-items-center" style="background: var(--primary); color: white;">
+        <div class="p-2 rounded-lg bg-white/20 me-3">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        </div>
+        <div>
+            <h5 class="fw-bold mb-0">Daily Sales Visit Log Mode</h5>
+            <p class="text-xs mb-0 opacity-80">You are recording details for a new field visit. Please scroll down to the visit form.</p>
+        </div>
+    </div>
+@endif
+
 <div class="page-header">
     <h1 class="page-title">Edit Lead: {{ $lead->company_name }}</h1>
 </div>
@@ -136,5 +148,13 @@
             </div>
         </form>
     </div>
+</div>
+
+<div class="mt-8">
+    <div class="page-header mb-4">
+        <h2 class="page-title" style="font-size: 1.25rem;">Visit & Meeting Details</h2>
+        <p class="text-xs text-muted-foreground">Log field visits and track relationship progression</p>
+    </div>
+    @livewire('dashboard.visit-form', ['lead' => $lead])
 </div>
 @endsection

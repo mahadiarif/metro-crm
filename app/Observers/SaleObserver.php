@@ -12,6 +12,7 @@ class SaleObserver
      */
     public function created(Sale $sale): void
     {
+        // 1. Log Activity
         LeadActivity::create([
             'lead_id' => $sale->lead_id,
             'user_id' => $sale->user_id,
@@ -22,5 +23,13 @@ class SaleObserver
                 'amount' => $sale->amount
             ]
         ]);
+
+        // 2. Automate Lead Status -> Closed
+        if ($sale->lead) {
+            $sale->lead->update([
+                'status' => \App\Models\Lead::STATUS_CLOSED,
+                'next_followup_at' => null // No more follow-ups needed for a won lead
+            ]);
+        }
     }
 }
