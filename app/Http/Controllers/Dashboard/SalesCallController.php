@@ -25,6 +25,7 @@ class SalesCallController extends Controller
         $reachRate = $totalCalls > 0 ? round(($reachedCount / $totalCalls) * 100) : 0;
         
         $hotLeadsCount = Lead::accessible()->where('lead_temperature', 'hot')->count();
+        $followUpsCount = SalesCall::where('outcome', 'follow_up')->count();
         $serviceInterestsCount = $reachedCount; // Calls resulting in service request
         $marketIntelCount = ServiceUsage::count();
 
@@ -55,18 +56,19 @@ class SalesCallController extends Controller
             $historyQuery->where('outcome', $filter);
         }
         
-        $historyCalls = $historyQuery->paginate(15)->withQueryString();
+        $callHistory = $historyQuery->paginate(15)->withQueryString();
 
         return view('dashboard.sales-calls.index', compact(
             'tab', 
             'filter', 
             'todayCalls', 
             'overdueCalls', 
-            'historyCalls', 
+            'callHistory', 
             'reachedCount', 
             'reachRate',
             'totalCalls',
             'hotLeadsCount',
+            'followUpsCount',
             'serviceInterestsCount',
             'marketIntelCount'
         ));

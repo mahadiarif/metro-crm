@@ -44,13 +44,25 @@
     </div>
 
     <div class="stat-card">
+        <div class="stat-icon stat-icon-primary" style="background: var(--indigo-50); color: var(--indigo-600);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+            </svg>
+        </div>
+        <div class="stat-content">
+            <div class="stat-label">Today's Calls</div>
+            <div class="stat-value">{{ number_format($crmStats['today_calls'] ?? 0) }}</div>
+        </div>
+    </div>
+
+    <div class="stat-card">
         <div class="stat-icon stat-icon-warning">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
         </div>
         <div class="stat-content">
-            <div class="stat-label">Today's Followups</div>
+            <div class="stat-label">Today's Tasks</div>
             <div class="stat-value">{{ number_format($crmStats['today_followups'] ?? 0) }}</div>
         </div>
     </div>
@@ -64,6 +76,17 @@
         <div class="stat-content">
             <div class="stat-label">Monthly Sales</div>
             <div class="stat-value">৳ {{ number_format($crmStats['monthly_sales'] ?? 0, 2) }}</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon stat-icon-info">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h2c4 0 7.5-1.2 9-3v14c-1.5-1.8-5-3-9-3H7a4 4 0 01-1.564-.317z" />
+            </svg>
+        </div>
+        <div class="stat-content">
+            <div class="stat-label">Campaigns</div>
+            <div class="stat-value">{{ number_format($crmStats['total_campaigns'] ?? 0) }}</div>
         </div>
     </div>
 </div>
@@ -213,6 +236,7 @@
     <div class="card">
         <div class="card-header">
             <h3 class="card-title">Today's Visits</h3>
+            <a href="{{ route('tyro-dashboard.sales-visits.index') }}" class="btn btn-sm btn-ghost">View All</a>
         </div>
         <div class="card-body" style="padding: 0;">
             <div class="table-container">
@@ -227,8 +251,8 @@
                         @forelse($crmCharts['today_visits_list'] as $visit)
                         <tr>
                             <td>
-                                <div style="font-weight: 600;">{{ $visit->lead->client_name ?? 'N/A' }}</div>
-                                <div style="font-size: 0.75rem; color: var(--muted-foreground);">{{ $visit->user->name ?? '' }}</div>
+                                <div style="font-weight: 600;">{{ $visit->dailySalesVisit->lead->company_name ?? ($visit->lead->client_name ?? 'N/A') }}</div>
+                                <div style="font-size: 0.75rem; color: var(--muted-foreground);">{{ $visit->marketingExe->name ?? ($visit->user->name ?? '') }}</div>
                             </td>
                             <td>{{ $visit->visit_date->format('h:i A') }}</td>
                         </tr>
@@ -243,10 +267,50 @@
         </div>
     </div>
 
-    {{-- Upcoming Followups List --}}
+    {{-- Today's Calls List --}}
     <div class="card">
         <div class="card-header">
-            <h3 class="card-title">My Followups</h3>
+            <h3 class="card-title">Today's Calls</h3>
+            <a href="{{ route('tyro-dashboard.sales-calls.index') }}" class="btn btn-sm btn-ghost">View All</a>
+        </div>
+        <div class="card-body" style="padding: 0;">
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Lead</th>
+                            <th>Outcome</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($crmCharts['today_calls_list'] as $call)
+                        <tr>
+                            <td>
+                                <div style="font-weight: 600;">{{ $call->lead->company_name ?? 'N/A' }}</div>
+                                <div style="font-size: 0.75rem; color: var(--muted-foreground);">{{ $call->user->name ?? '' }}</div>
+                            </td>
+                            <td>
+                                <span class="badge {{ $call->outcome === 'service_request' ? 'badge-success' : 'badge-secondary' }}" style="font-size: 0.7rem;">
+                                    {{ Str::headline($call->outcome) }}
+                                </span>
+                            </td>
+                        </tr>
+                        @empty
+                        <tr>
+                            <td colspan="2" style="text-align: center; padding: 2rem; color: var(--muted-foreground);">No calls logged today.</td>
+                        </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    {{-- Pending Followups List --}}
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Pending Followups</h3>
+            <a href="{{ route('tyro-dashboard.resources.index', 'follow-ups') }}" class="btn btn-sm btn-ghost">View All</a>
         </div>
         <div class="card-body" style="padding: 0;">
             <div class="table-container">
@@ -261,7 +325,7 @@
                         @forelse($crmCharts['upcoming_followups_list'] as $followup)
                         <tr>
                             <td>
-                                <div style="font-weight: 600;">{{ $followup->lead->client_name ?? 'N/A' }}</div>
+                                <div style="font-weight: 600;">{{ $followup->lead->company_name ?? ($followup->lead->client_name ?? 'N/A') }}</div>
                             </td>
                             <td>
                                 <div>{{ $followup->scheduled_at->format('M d') }}</div>
@@ -278,7 +342,95 @@
             </div>
         </div>
     </div>
-<!-- Row 5: Recent Activity -->
+
+    {{-- Campaign Performance Card --}}
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Campaign Performance</h3>
+            <a href="{{ route('tyro-dashboard.marketing.campaigns.index') }}" class="btn btn-sm btn-ghost">View All</a>
+        </div>
+        <div class="card-body">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
+                <div style="padding: 1rem; background: var(--muted); border-radius: 8px; border: 1px solid var(--border);">
+                    <div style="font-size: 0.75rem; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; margin-bottom: 0.25rem;">Active</div>
+                    <div style="font-size: 1.5rem; font-weight: 800; color: var(--primary);">{{ number_format($crmStats['active_campaigns'] ?? 0) }}</div>
+                </div>
+                <div style="padding: 1rem; background: var(--muted); border-radius: 8px; border: 1px solid var(--border);">
+                    <div style="font-size: 0.75rem; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; margin-bottom: 0.25rem;">Total Sent</div>
+                    <div style="font-size: 1.5rem; font-weight: 800; color: var(--primary);">{{ number_format($crmStats['sent_campaigns'] ?? 0) }}</div>
+                </div>
+            </div>
+            
+            <div style="background: white; border: 1px solid var(--border); border-radius: 10px; padding: 1rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                    <span style="font-size: 0.875rem; font-weight: 700;">Latest Campaign</span>
+                </div>
+                @php($latest = $crmCharts['recent_campaigns']->first())
+                @if($latest)
+                    <div style="display: flex; gap: 1rem; align-items: center;">
+                        <div style="width: 40px; height: 40px; border-radius: 8px; background: var(--primary); color: white; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h2c4 0 7.5-1.2 9-3v14c-1.5-1.8-5-3-9-3H7a4 4 0 01-1.564-.317z" />
+                            </svg>
+                        </div>
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="font-weight: 700; font-size: 0.9375rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ $latest->name }}</div>
+                            <div style="font-size: 0.8125rem; color: var(--muted-foreground);">{{ number_format($latest->recipients_count) }} reach</div>
+                        </div>
+                    </div>
+                @else
+                    <div style="text-align: center; padding: 0.5rem; color: var(--muted-foreground); font-size: 0.875rem;">No active campaigns.</div>
+                @endif
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Row 5: Marketing Campaigns -->
+<div class="card" style="margin-top: 2rem;">
+    <div class="card-header">
+        <h3 class="card-title">Marketing Campaigns</h3>
+        <a href="{{ route('tyro-dashboard.marketing.campaigns.index') }}" class="btn btn-sm btn-ghost">View All</a>
+    </div>
+    <div class="card-body" style="padding: 0;">
+        <div class="table-container">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Campaign</th>
+                        <th>Status</th>
+                        <th style="text-align: right;">Recipients</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($crmCharts['recent_campaigns'] as $campaign)
+                    <tr>
+                        <td>
+                            <div style="font-weight: 600;">{{ $campaign->name }}</div>
+                            <div style="font-size: 0.75rem; color: var(--muted-foreground);">{{ ucfirst($campaign->type) }}</div>
+                        </td>
+                        <td>
+                            <span class="badge {{ $campaign->status === 'sent' ? 'badge-success' : ($campaign->status === 'failed' ? 'badge-danger' : 'badge-secondary') }}">
+                                {{ Str::headline($campaign->status) }}
+                            </span>
+                        </td>
+                        <td style="text-align: right;">
+                            <div style="font-weight: 700;">{{ number_format($campaign->recipients_count) }}</div>
+                            <div style="font-size: 0.75rem; color: var(--muted-foreground);">{{ number_format($campaign->sent_recipients_count) }} sent</div>
+                        </td>
+                    </tr>
+                    @empty
+                    <tr>
+                        <td colspan="3" style="text-align: center; padding: 2rem; color: var(--muted-foreground);">No campaigns created yet.</td>
+                    </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Row 6: Recent Activity -->
 <div class="card" style="margin-top: 2rem;">
     <div class="card-header">
         <h3 class="card-title">Recent Activity</h3>

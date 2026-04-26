@@ -28,11 +28,14 @@ class SalesVisitController extends Controller
         $serviceInterestsCount = $successCount; // Based on service_request status
         $marketIntelCount = ServiceUsage::count();
 
-        // 2. Field Queue (Active leads needing visits)
-        $scheduledVisits = Lead::accessible()
-            ->where('status', '!=', Lead::STATUS_CLOSED)
-            ->with(['salesVisitEntries', 'service'])
-            ->get();
+        // 2. Specialized Queues for UI Tabs
+        $today = Carbon::today();
+        
+        $todayVisits = SalesVisitEntry::whereDate('visit_date', $today)->with(['dailySalesVisit', 'marketingExe'])->get();
+        $overdueVisits = SalesVisitEntry::where('status', 'pending')->whereDate('visit_date', '<', $today)->get();
+        
+        $satisfiedVisits = SalesVisitEntry::where('status', 'satisfied')->count();
+        $followUpsCount = SalesVisitEntry::where('status', 'follow_up')->count();
 
         // 3. History Logs
         $historyQuery = SalesVisitEntry::with(['dailySalesVisit', 'marketingExe'])
@@ -42,15 +45,18 @@ class SalesVisitController extends Controller
             $historyQuery->where('status', $filter);
         }
 
-        $historyVisits = $historyQuery->paginate(15)->withQueryString();
+        $visitHistory = $historyQuery->paginate(15)->withQueryString();
 
         return view('dashboard.sales-visits.index', compact(
             'tab',
             'filter',
             'totalVisits',
-            'scheduledVisits',
+            'todayVisits',
+            'overdueVisits',
+            'visitHistory',
+            'satisfiedVisits',
+            'followUpsCount',
             'successRate',
-            'historyVisits',
             'hotLeadsCount',
             'serviceInterestsCount',
             'marketIntelCount'

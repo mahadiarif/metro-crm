@@ -306,8 +306,8 @@
     .topbar {
         background-color: var(--background);
         border-bottom: 1px solid var(--border);
-        padding: 0 1.5rem;
-        height: 64px;
+        padding: 0 1rem;
+        height: 48px;
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -316,7 +316,7 @@
     .topbar-left {
         display: flex;
         align-items: center;
-        gap: 0.75rem;
+        gap: 0.5rem;
     }
 
     .mobile-menu-btn {
@@ -341,7 +341,7 @@
     .breadcrumb {
         display: flex;
         align-items: center;
-        gap: 0.5rem;
+        gap: 0.375rem;
         font-size: 0.9375rem;
         color: var(--muted-foreground);
     }
@@ -396,8 +396,8 @@
         display: flex;
         align-items: center;
         gap: 0.5rem;
-        padding: 0.375rem;
-        padding-right: 0.5rem;
+        padding: 0.25rem;
+        padding-right: 0.375rem;
         border: 1px solid var(--border);
         background: var(--background);
         border-radius: 6px;
@@ -410,8 +410,8 @@
     }
 
     .user-avatar {
-        width: 36px;
-        height: 36px;
+        width: 28px;
+        height: 28px;
         border-radius: 50%;
         background: var(--foreground);
         display: flex;
@@ -427,14 +427,14 @@
     }
 
     .user-name {
-        font-size: 0.9375rem;
+        font-size: 0.8125rem;
         font-weight: 500;
         color: var(--foreground);
         line-height: 1.3;
     }
 
     .user-role {
-        font-size: 0.8125rem;
+        font-size: 0.6875rem;
         color: var(--muted-foreground);
         line-height: 1.3;
     }
@@ -447,7 +447,7 @@
 
     .sticky-topbar-wrapper {
         position: sticky;
-        top: var(--admin-bar-height, 0);
+        top: 0;
         z-index: 40;
         width: 100%;
         background-color: var(--background);

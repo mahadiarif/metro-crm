@@ -6,6 +6,9 @@ use App\Models\Lead;
 use App\Models\Visit;
 use App\Models\FollowUp;
 use App\Models\Sale;
+use App\Models\SalesCall;
+use App\Domains\Marketing\Models\Campaign;
+use App\Domains\Marketing\Models\CampaignRecipient;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 use Carbon\Carbon;
@@ -23,12 +26,17 @@ class CRMStatsComposer
         $crmStats = [
             'total_leads' => Lead::count(),
             'today_visits' => Visit::whereDate('visit_date', $today)->count(),
+            'today_calls' => SalesCall::whereDate('created_at', $today)->count(),
             'today_followups' => FollowUp::whereDate('scheduled_at', $today)
             ->whereNull('completed_at')
             ->count(),
             'monthly_sales' => Sale::whereMonth('closed_at', Carbon::now()->month)
             ->whereYear('closed_at', Carbon::now()->year)
             ->sum('amount'),
+            'total_campaigns' => Campaign::count(),
+            'active_campaigns' => Campaign::whereIn('status', [Campaign::STATUS_DRAFT, Campaign::STATUS_SCHEDULED, Campaign::STATUS_SENDING])->count(),
+            'sent_campaigns' => Campaign::where('status', Campaign::STATUS_SENT)->count(),
+            'campaign_recipients' => CampaignRecipient::count(),
         ];
 
         // Weekly Leads (Last 7 days)
@@ -49,23 +57,32 @@ class CRMStatsComposer
             $bar['pct'] = $max_leads > 0 ? ($bar['value'] / $max_leads) * 100 : 0;
         }
 
-        // Leads by Status
-        $statuses = [
-            'new' => ['label' => 'New', 'color' => '#3b82f6'], // blue
-            'contacted' => ['label' => 'Contacted', 'color' => '#06b6d4'], // cyan
-            'interested' => ['label' => 'Interested', 'color' => '#f59e0b'], // amber
-            'closed' => ['label' => 'Closed', 'color' => '#10b981'], // emerald
-            'lost' => ['label' => 'Lost', 'color' => '#ef4444'], // red
+        // Leads by Status Distribution (Dynamic)
+        $statusConfig = [
+            'new' => ['label' => 'New', 'color' => '#3b82f6'],
+            'active' => ['label' => 'Active', 'color' => '#6366f1'],
+            'in_pipeline' => ['label' => 'Pipeline', 'color' => '#f59e0b'],
+            'interested' => ['label' => 'Interested', 'color' => '#06b6d4'],
+            'closed' => ['label' => 'Closed', 'color' => '#10b981'],
+            'unqualified' => ['label' => 'Unqualified', 'color' => '#94a3b8'],
+            'lost' => ['label' => 'Lost', 'color' => '#ef4444'],
         ];
 
+        $statusCounts = Lead::groupBy('status')
+            ->select('status', DB::raw('count(*) as total'))
+            ->get();
+
         $status_donut = [];
-        foreach ($statuses as $key => $status) {
-            $count = Lead::where('status', $key)->count();
+        foreach ($statusCounts as $row) {
+            $key = $row->status ?? 'unknown';
+            $count = $row->total;
+            $config = $statusConfig[$key] ?? ['label' => ucfirst(str_replace(['_', '-'], ' ', $key)), 'color' => '#cbd5e1'];
+            
             $status_donut[] = [
-                'label' => $status['label'],
+                'label' => $config['label'],
                 'count' => $count,
                 'pct' => ($crmStats['total_leads'] > 0) ? round(($count / $crmStats['total_leads']) * 100) : 0,
-                'color' => $status['color']
+                'color' => $config['color']
             ];
         }
 
@@ -145,6 +162,13 @@ class CRMStatsComposer
             ->limit(5)
             ->get();
 
+        // Today's Calls List
+        $today_calls_list = SalesCall::with(['lead', 'user'])
+            ->whereDate('created_at', $today)
+            ->latest()
+            ->limit(5)
+            ->get();
+
         // Upcoming Followups List
         $upcoming_followups_list = FollowUp::with(['lead', 'user'])
             ->whereDate('scheduled_at', '>=', $today)
@@ -165,6 +189,17 @@ class CRMStatsComposer
             ->limit(5)
             ->get();
 
+        // Recent Marketing Campaigns
+        $recent_campaigns = Campaign::with('creator')
+            ->withCount([
+                'recipients',
+                'recipients as sent_recipients_count' => fn ($query) => $query->where('status', CampaignRecipient::STATUS_SENT),
+                'recipients as failed_recipients_count' => fn ($query) => $query->where('status', CampaignRecipient::STATUS_FAILED),
+            ])
+            ->latest()
+            ->limit(5)
+            ->get();
+
         $crmCharts = [
             'weekly_bars' => $weekly_bars,
             'weekly_sales_bars' => $weekly_sales_bars,
@@ -179,9 +214,11 @@ class CRMStatsComposer
             'product_sales' => $product_sales,
             'executive_performance' => $executive_performance,
             'today_visits_list' => $today_visits_list,
+            'today_calls_list' => $today_calls_list,
             'upcoming_followups_list' => $upcoming_followups_list,
             'latest_leads' => $latest_leads,
             'latest_sales' => $latest_sales,
+            'recent_campaigns' => $recent_campaigns,
             'recent_activities' => $this->getFormattedActivities(),
         ];
 
@@ -193,11 +230,11 @@ class CRMStatsComposer
         $activities = [];
 
         // Fetch Lead Activities
-        $leadActivities = \App\Models\LeadActivity::with(['lead', 'user'])->latest()->limit(5)->get();
+        $leadActivities = \App\Models\LeadActivity::with(['lead', 'user'])->latest()->limit(10)->get();
         foreach ($leadActivities as $activity) {
             $activities[] = [
                 'title' => $this->getActivityTitle($activity->type),
-                'subtitle' => $activity->description,
+                'subtitle' => $activity->description . ($activity->lead ? " (Lead: " . ($activity->lead->company_name ?? $activity->lead->client_name) . ")" : ""),
                 'actor' => $activity->user->name ?? 'System',
                 'actor_meta' => $activity->user->email ?? 'Automation',
                 'status' => 'Completed',

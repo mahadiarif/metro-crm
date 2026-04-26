@@ -26,15 +26,15 @@
             --elite-border: #f1f5f9;
         }
 
-        body { font-family: 'Inter', sans-serif; background-color: var(--elite-bg-soft) !important; color: var(--elite-slate-900); }
+        body { font-family: 'Inter', sans-serif; background-color: var(--background) !important; color: var(--foreground); }
         h1, h2, h3, h4, h5, h6, .page-title, .lead-title { font-family: 'Outfit', sans-serif !important; letter-spacing: -0.02em; }
 
         /* Master Utility Overrides */
-        .main-content { background: var(--elite-bg-soft); }
+        .main-content { background: var(--background); }
         .page-content { padding: 40px !important; }
 
         .elite-card-master {
-            background: #ffffff; border-radius: 20px; border: 1px solid var(--elite-border);
+            background: var(--card); border-radius: 20px; border: 1px solid var(--border);
             box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05); transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .elite-card-master:hover { transform: translateY(-4px); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05); border-color: #e2e8f0; }
@@ -44,16 +44,16 @@
             display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 6px;
             font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px;
         }
-        .badg-success { background: #ecfdf5; color: var(--elite-emerald-600); border: 1px solid #d1fae5; }
-        .badg-primary { background: #eef2ff; color: var(--elite-indigo-600); border: 1px solid #e0e7ff; }
-        .badg-danger { background: #fff1f2; color: var(--elite-rose-600); border: 1px solid #ffe4e6; }
-        .badg-warning { background: #fff7ed; color: #d97706; border: 1px solid #ffedd5; }
+        .badg-success { background: var(--success); color: var(--success-foreground); border: 1px solid var(--success); }
+        .badg-primary { background: var(--primary); color: var(--primary-foreground); border: 1px solid var(--primary); }
+        .badg-danger { background: var(--destructive); color: var(--destructive-foreground); border: 1px solid var(--destructive); }
+        .badg-warning { background: var(--warning); color: var(--warning-foreground); border: 1px solid var(--warning); }
 
         /* Elite Sidebar Enhancements */
-        .dashboard-layout .sidebar { border-right: 1px solid var(--elite-border) !important; background: #ffffff !important; box-shadow: none !important; }
-        .sidebar .nav-link { font-weight: 700; color: #64748b; font-size: 13px; border-radius: 10px; margin: 4px 12px; }
-        .sidebar .nav-link.active { background: var(--elite-slate-900) !important; color: #ffffff !important; }
-        .sidebar .nav-link:hover:not(.active) { background: rgba(0,0,0,0.02); }
+        .dashboard-layout .sidebar { border-right: 1px solid var(--sidebar-border) !important; background: var(--sidebar) !important; box-shadow: none !important; }
+        .sidebar .nav-link { font-weight: 700; color: var(--sidebar-foreground); font-size: 13px; border-radius: 10px; margin: 4px 12px; }
+        .sidebar .nav-link.active { background: var(--sidebar-primary) !important; color: var(--sidebar-primary-foreground) !important; }
+        .sidebar .nav-link:hover:not(.active) { background: var(--sidebar-accent); }
 
         /* Page Transitions */
         .page-content { animation: elitePageFade 0.6s cubic-bezier(0.16, 1, 0.3, 1); }

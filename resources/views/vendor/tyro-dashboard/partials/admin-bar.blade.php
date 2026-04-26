@@ -1,10 +1,11 @@
 @php
     $hasNotice = \HasinHayder\TyroDashboard\Services\AdminNotice::hasNotice();
+    $message = $hasNotice ? \HasinHayder\TyroDashboard\Services\AdminNotice::getMessage() : '';
+    $hasVisibleNotice = $hasNotice && trim(strip_tags($message)) !== '';
 @endphp
 
-@if($hasNotice)
+@if($hasVisibleNotice)
     @php
-        $message = \HasinHayder\TyroDashboard\Services\AdminNotice::getMessage();
         $bgColor = \HasinHayder\TyroDashboard\Services\AdminNotice::getBgColor();
         $textColor = \HasinHayder\TyroDashboard\Services\AdminNotice::getTextColor();
         $align = \HasinHayder\TyroDashboard\Services\AdminNotice::getAlign();

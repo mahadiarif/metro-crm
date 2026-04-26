@@ -7,7 +7,6 @@
         </button>
 
         <nav class="breadcrumb">
-        <nav class="breadcrumb">
             @yield('breadcrumb')
         </nav>
     </div>

@@ -60,19 +60,30 @@
 
     // Sidebar Scroll Position Memory
     document.addEventListener('DOMContentLoaded', function() {
-        const sidebarNav = document.querySelector('.sidebar-nav') || document.getElementById('sidebar');
+        const sidebar = document.getElementById('sidebar');
+        const sidebarNav = document.querySelector('.sidebar-nav');
+        const scrollContainer = sidebar || sidebarNav;
         
-        if (sidebarNav) {
+        if (scrollContainer) {
             // Restore scroll position
             const savedScroll = localStorage.getItem('tyro-sidebar-scroll');
             if (savedScroll !== null) {
-                sidebarNav.scrollTop = parseInt(savedScroll, 10);
+                scrollContainer.scrollTop = parseInt(savedScroll, 10);
             }
 
             // Save scroll position on interaction
-            sidebarNav.addEventListener('scroll', function() {
+            scrollContainer.addEventListener('scroll', function() {
                 localStorage.setItem('tyro-sidebar-scroll', this.scrollTop);
             }, { passive: true });
+
+            // Save immediately before navigation, especially for lower menu links.
+            if (sidebarNav) {
+                sidebarNav.addEventListener('click', function(event) {
+                    if (event.target.closest('a.sidebar-link')) {
+                        localStorage.setItem('tyro-sidebar-scroll', scrollContainer.scrollTop);
+                    }
+                });
+            }
         }
     });
 

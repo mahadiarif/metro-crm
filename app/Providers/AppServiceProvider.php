@@ -49,5 +49,6 @@ class AppServiceProvider extends ServiceProvider
         \App\Models\FollowUp::observe(\App\Observers\FollowUpObserver::class);
         \App\Models\Sale::observe(\App\Observers\SaleObserver::class);
         \App\Models\Note::observe(\App\Observers\NoteObserver::class);
+        \App\Models\SalesCall::observe(\App\Observers\SalesCallObserver::class);
     }
 }

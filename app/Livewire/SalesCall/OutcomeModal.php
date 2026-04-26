@@ -43,6 +43,21 @@ class OutcomeModal extends Component
 
     protected $listeners = ['openOutcomeModal' => 'open'];
 
+    public function mount($leadId = null, $isModalOpen = false)
+    {
+        $this->isModalOpen = $isModalOpen;
+
+        if ($leadId) {
+            $this->loadLeadData($leadId);
+        } else {
+            $this->isStandalone = true;
+        }
+
+        if (empty($this->dynamicServices)) {
+            $this->addServiceRow();
+        }
+    }
+
     protected function rules()
     {
         return [
@@ -129,6 +144,32 @@ class OutcomeModal extends Component
             $this->currentUsage = $lead->current_usage;
             $this->callCount = $lead->salesCalls()->count() + 1;
         }
+    }
+
+    public function updatedSearch()
+    {
+        if (strlen($this->search) < 2) {
+            $this->leads = [];
+            return;
+        }
+
+        $this->leads = Lead::accessible()
+            ->active()
+            ->where(function($q) {
+                $q->where('company_name', 'like', '%' . $this->search . '%')
+                  ->orWhere('client_name', 'like', '%' . $this->search . '%')
+                  ->orWhere('phone', 'like', '%' . $this->search . '%');
+            })
+            ->limit(10)
+            ->get()
+            ->toArray();
+    }
+
+    public function selectLead($id)
+    {
+        $this->loadLeadData($id);
+        $this->leads = [];
+        $this->search = '';
     }
 
     public function close()
