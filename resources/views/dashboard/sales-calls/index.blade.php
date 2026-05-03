@@ -109,45 +109,67 @@
                 </tr>
             </thead>
             <tbody>
-                @php($calls = $tab === 'today' ? $todayCalls : ($tab === 'overdue' ? $overdueCalls : $callHistory))
-                @forelse($calls as $call)
-                <tr style="cursor: pointer;" onclick="window.location='{{ route('tyro-dashboard.sales-calls.show', $call->id) }}'">
+                <?php $rows = $tab === 'today' ? $todayCalls : ($tab === 'overdue' ? $overdueCalls : $callHistory); ?>
+                <?php if ($rows->count()) { ?>
+                <?php foreach ($rows as $row) { ?>
+                <?php
+                    $isLeadQueue = $row instanceof Lead;
+                    $lead = $isLeadQueue ? $row : $row->lead;
+                    $latestCall = $isLeadQueue ? $row->latestCall : $row;
+                    $targetUrl = $isLeadQueue
+                        ? route('tyro-dashboard.sales-calls.create', ['lead_id' => $row->id])
+                        : route('tyro-dashboard.sales-calls.edit', $row->id);
+                ?>
+                <tr style="cursor: pointer;" onclick="window.location='{{ $targetUrl }}'">
                     <td>
-                        <div style="font-weight: 600;">{{ $call->lead->company_name ?? 'N/A' }}</div>
-                        <div style="font-size: 0.75rem; color: var(--muted-foreground);">{{ $call->lead->client_name ?? '' }}</div>
+                        <div style="font-weight: 600;">{{ $lead->company_name ?? 'N/A' }}</div>
+                        <div style="font-size: 0.75rem; color: var(--muted-foreground);">{{ $lead->client_name ?? '' }}</div>
                     </td>
                     <td>
-                        <span class="badge {{ $call->outcome === 'service_request' ? 'badge-success' : 'badge-secondary' }}">
-                            {{ Str::headline($call->outcome) }}
+                        <span class="badge {{ ($latestCall?->outcome ?? null) === 'service_request' ? 'badge-success' : 'badge-secondary' }}">
+                            {{ $latestCall?->outcome ? Str::headline($latestCall->outcome) : 'Pending Call' }}
                         </span>
                     </td>
                     <td>
-                        @if($call->follow_up_date)
-                            <div style="font-size: 0.8125rem;">{{ $call->follow_up_date->format('M d, Y') }}</div>
-                            <div style="font-size: 0.75rem; color: var(--muted-foreground);">{{ $call->follow_up_date->format('h:i A') }}</div>
+                        <?php $followUpAt = $isLeadQueue ? $lead->next_followup_at : $row->next_call_at; ?>
+                        @if($followUpAt)
+                            <div style="font-size: 0.8125rem;">{{ $followUpAt->format('M d, Y') }}</div>
+                            <div style="font-size: 0.75rem; color: var(--muted-foreground);">{{ $followUpAt->format('h:i A') }}</div>
                         @else
                             <span style="color: var(--muted-foreground);">-</span>
                         @endif
                     </td>
-                    <td>{{ $call->user->name ?? 'System' }}</td>
-                    <td>{{ $call->created_at->diffForHumans() }}</td>
+                    <td>{{ $isLeadQueue ? ($lead->assignedUser->name ?? 'Unassigned') : ($row->user->name ?? 'System') }}</td>
+                    <td>{{ $isLeadQueue ? ($latestCall?->created_at?->diffForHumans() ?? 'Not called yet') : $row->created_at->diffForHumans() }}</td>
                     <td style="text-align: right;" onclick="event.stopPropagation()">
                         <div class="table-actions" style="justify-content: flex-end;">
-                            <a href="{{ route('tyro-dashboard.sales-calls.show', $call->id) }}" class="btn btn-icon btn-ghost" title="View">
+                            <a href="{{ $targetUrl }}" class="btn btn-icon btn-ghost" title="{{ $isLeadQueue ? 'Log Call' : 'View' }}">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z" />
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                                 </svg>
                             </a>
-                            <a href="{{ route('tyro-dashboard.sales-calls.edit', $call->id) }}" class="btn btn-icon btn-ghost" title="Edit">
+                            @unless($isLeadQueue)
+                            <a href="{{ route('tyro-dashboard.sales-calls.edit', $row->id) }}" class="btn btn-icon btn-ghost" title="Edit">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5m-1.414-9.414a2 2 0 1 1 2.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                 </svg>
                             </a>
+                            <form action="{{ route('tyro-dashboard.sales-calls.destroy', $row->id) }}" method="POST" style="display: inline-flex;" onsubmit="return confirm('Delete this sales call?')">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn btn-icon btn-ghost text-danger" title="Delete">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3" />
+                                    </svg>
+                                </button>
+                            </form>
+                            @endunless
                         </div>
                     </td>
                 </tr>
-                @empty
+                <?php } ?>
+                <?php } else { ?>
                 <tr>
                     <td colspan="6" style="text-align: center; padding: 3rem; color: var(--muted-foreground);">
                         <div style="margin-bottom: 1rem;">
@@ -158,13 +180,13 @@
                         No calls found for this section.
                     </td>
                 </tr>
-                @endforelse
+                <?php } ?>
             </tbody>
         </table>
     </div>
     @if($callHistory->hasPages())
     <div class="card-footer">
-        {{ $callHistory->links() }}
+        {{ $callHistory->links('tyro-dashboard::partials.pagination') }}
     </div>
     @endif
 </div>

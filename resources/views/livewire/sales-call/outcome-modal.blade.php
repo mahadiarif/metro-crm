@@ -168,6 +168,20 @@
             background: color-mix(in srgb, var(--success-foreground) 12%, transparent);
         }
         .call-actions { padding: 0 1rem 1rem; }
+        .call-alert {
+            grid-column: 1 / -1;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            border: 1px solid color-mix(in srgb, var(--destructive) 35%, var(--border));
+            background: color-mix(in srgb, var(--destructive) 8%, var(--card));
+            color: var(--destructive);
+            border-radius: 8px;
+            padding: 0.875rem 1rem;
+            margin-bottom: 0.5rem;
+            font-size: 0.8125rem;
+            font-weight: 700;
+        }
         @media (max-width: 1100px) {
             .call-dashboard-grid { grid-template-columns: 1fr; }
         }
@@ -180,6 +194,15 @@
     </style>
 
     <div class="call-dashboard-grid">
+        @if ($errors->any())
+            <div class="call-alert">
+                <svg class="simple-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.3 3.9 2.6 17.2A2 2 0 0 0 4.3 20h15.4a2 2 0 0 0 1.7-2.8L13.7 3.9a2 2 0 0 0-3.4 0z" />
+                </svg>
+                {{ $errors->first() }}
+            </div>
+        @endif
+
         <div>
             <div class="call-card">
                 <div class="call-card-header">
@@ -400,9 +423,10 @@
             </div>
 
             <div class="call-actions">
-                <button wire:click="saveOutcome" class="btn btn-primary" style="width: 100%; justify-content: center; min-height: 44px;">
-                    Save Sales Call
-                    <svg class="simple-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <button type="button" wire:click="saveOutcome" wire:loading.attr="disabled" class="btn btn-primary" style="width: 100%; justify-content: center; min-height: 44px;">
+                    <span wire:loading.remove>Save Sales Call</span>
+                    <span wire:loading>Saving...</span>
+                    <svg wire:loading.remove class="simple-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M13 6l6 6-6 6" />
                     </svg>
                 </button>

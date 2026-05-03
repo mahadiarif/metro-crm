@@ -18,6 +18,7 @@ class SalesCallController extends Controller
     {
         $tab = $request->get('tab', 'today'); // today, overdue, history
         $filter = $request->get('filter', 'all');
+        $search = trim((string) $request->get('search', ''));
 
         // 1. Calculate Core Metrics (Aggregated)
         $totalCalls = SalesCall::count();
@@ -39,18 +40,42 @@ class SalesCallController extends Controller
                   ->orWhereNull('next_followup_at');
             })
             ->where('status', '!=', Lead::STATUS_CLOSED)
-            ->with(['latestCall', 'service'])
+            ->when($search !== '', function ($q) use ($search) {
+                $q->where(function ($query) use ($search) {
+                    $query->where('company_name', 'like', '%' . $search . '%')
+                        ->orWhere('client_name', 'like', '%' . $search . '%')
+                        ->orWhere('phone', 'like', '%' . $search . '%');
+                });
+            })
+            ->with(['assignedUser', 'latestCall', 'service'])
             ->get();
 
         // Overdue Queue (Scheduled before today)
         $overdueCalls = Lead::accessible()
             ->whereDate('next_followup_at', '<', $today)
             ->where('status', '!=', Lead::STATUS_CLOSED)
-            ->with(['latestCall', 'service'])
+            ->when($search !== '', function ($q) use ($search) {
+                $q->where(function ($query) use ($search) {
+                    $query->where('company_name', 'like', '%' . $search . '%')
+                        ->orWhere('client_name', 'like', '%' . $search . '%')
+                        ->orWhere('phone', 'like', '%' . $search . '%');
+                });
+            })
+            ->with(['assignedUser', 'latestCall', 'service'])
             ->get();
 
         // 3. History Feed (Logged interactions)
-        $historyQuery = SalesCall::with(['lead', 'user'])->latest();
+        $historyQuery = SalesCall::with(['lead', 'user'])->latest()
+            ->when($search !== '', function ($q) use ($search) {
+                $q->where(function ($query) use ($search) {
+                    $query->where('outcome', 'like', '%' . $search . '%')
+                        ->orWhereHas('lead', function ($leadQuery) use ($search) {
+                            $leadQuery->where('company_name', 'like', '%' . $search . '%')
+                                ->orWhere('client_name', 'like', '%' . $search . '%')
+                                ->orWhere('phone', 'like', '%' . $search . '%');
+                        });
+                });
+            });
         
         if ($filter !== 'all') {
             $historyQuery->where('outcome', $filter);
@@ -95,5 +120,44 @@ class SalesCallController extends Controller
         // Persistence handled via specialized Outcome Logic (Action Layer)
         return redirect()->route('tyro-dashboard.sales-calls.index')
             ->with('success', 'Sales call session recorded successfully.');
+    }
+
+    public function show(SalesCall $salesCall)
+    {
+        return redirect()->route('tyro-dashboard.sales-calls.edit', $salesCall);
+    }
+
+    public function edit(SalesCall $salesCall)
+    {
+        return view('dashboard.sales-calls.create', [
+            'lead' => $salesCall->lead,
+            'call' => $salesCall,
+        ]);
+    }
+
+    public function update(Request $request, SalesCall $salesCall)
+    {
+        return redirect()->route('tyro-dashboard.sales-calls.edit', $salesCall)
+            ->with('success', 'Use the sales call form to update this record.');
+    }
+
+    public function destroy(SalesCall $salesCall)
+    {
+        $salesCall->delete();
+
+        return redirect()->route('tyro-dashboard.sales-calls.index')
+            ->with('success', 'Sales call deleted successfully.');
+    }
+
+    public function reopen(Lead $lead)
+    {
+        $lead->update([
+            'status' => Lead::STATUS_ACTIVE,
+            'close_reason' => null,
+            'next_followup_at' => now(),
+        ]);
+
+        return redirect()->route('tyro-dashboard.sales-calls.create', ['lead_id' => $lead->id])
+            ->with('success', 'Lead reopened for follow-up.');
     }
 }

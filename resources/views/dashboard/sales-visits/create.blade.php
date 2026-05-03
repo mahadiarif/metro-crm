@@ -31,7 +31,8 @@
         @livewire('sales-visit.visit-modal', [
             'leadId' => request('lead_id'), 
             'isModalOpen' => true, 
-            'isStandalone' => true
+            'isStandalone' => !isset($visit),
+            'visitId' => $visit->id ?? null
         ])
     </div>
 </div>

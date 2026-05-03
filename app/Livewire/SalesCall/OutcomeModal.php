@@ -43,11 +43,13 @@ class OutcomeModal extends Component
 
     protected $listeners = ['openOutcomeModal' => 'open'];
 
-    public function mount($leadId = null, $isModalOpen = false)
+    public function mount($leadId = null, $isModalOpen = false, $callId = null)
     {
         $this->isModalOpen = $isModalOpen;
 
-        if ($leadId) {
+        if ($callId) {
+            $this->open(null, $callId);
+        } elseif ($leadId) {
             $this->loadLeadData($leadId);
         } else {
             $this->isStandalone = true;
@@ -61,6 +63,7 @@ class OutcomeModal extends Component
     protected function rules()
     {
         return [
+            'leadId' => 'required|exists:leads,id',
             'outcome' => 'required|string|in:follow_up,service_request,not_interested',
             'notes' => 'required_if:outcome,follow_up|nullable|string',
             'nextCallAt' => 'required_if:outcome,follow_up|nullable|date|after_or_equal:today',
@@ -85,7 +88,7 @@ class OutcomeModal extends Component
      */
     public function open($leadId = null, $callId = null)
     {
-        $this->reset(['leadId', 'leadName', 'address', 'contactPerson', 'designation', 'phone', 'email', 'leadSource', 'existingProvider', 'currentUsage', 'outcome', 'notes', 'nextCallAt', 'closeReason', 'dynamicServices', 'editingId']);
+        $this->reset(['leadId', 'leadName', 'address', 'contactPerson', 'designation', 'phone', 'email', 'leadSource', 'existingProvider', 'currentUsage', 'outcome', 'notes', 'nextCallAt', 'closeReason', 'callStatus', 'nextFollowupDate', 'dynamicServices', 'editingId']);
         
         if ($callId) {
             $this->editingId = $callId;
@@ -95,6 +98,8 @@ class OutcomeModal extends Component
             $this->outcome = $call->outcome;
             $this->notes = $call->notes;
             $this->callStatus = $call->call_status;
+            $this->nextCallAt = optional($call->next_call_at)->format('Y-m-d\TH:i');
+            $this->nextFollowupDate = optional($call->next_followup_date)->format('Y-m-d');
             // Load snapshots stored in the call record
             $this->address = $call->address;
             $this->contactPerson = $call->contact_person;
@@ -201,7 +206,11 @@ class OutcomeModal extends Component
 
     public function saveOutcome()
     {
-        $this->validate();
+        try {
+            $this->validate();
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        }
 
         $lead = Lead::findOrFail($this->leadId);
 
@@ -226,7 +235,13 @@ class OutcomeModal extends Component
                 'call_status' => $this->callStatus,
                 'notes' => $this->notes,
                 'next_call_at' => $this->outcome === 'follow_up' ? Carbon::parse($this->nextCallAt) : null,
-                // Partial snapshots update
+                'next_followup_date' => $this->nextFollowupDate,
+                'address' => $this->address,
+                'contact_person' => $this->contactPerson,
+                'designation' => $this->designation,
+                'phone' => $this->phone,
+                'email' => $this->email,
+                'source' => $this->leadSource,
                 'existing_provider' => $this->existingProvider,
                 'current_usage' => $this->currentUsage,
             ]);

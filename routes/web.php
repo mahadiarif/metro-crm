@@ -6,13 +6,13 @@ Route::get('/', function () {
     return redirect()->route('tyro-dashboard.index');
 });
 Route::middleware(['web', 'auth', 'tyro.role.protection'])->prefix('dashboard')->name('tyro-dashboard.')->group(function () {
-    // Redirect legacy resource paths to our new modern UI
-    Route::get('/resources/visits/create', function() { return redirect()->route('tyro-dashboard.sales-visits.create'); });
-    Route::get('/resources/visits/{visit}/edit', function(\App\Models\Visit $visit) { return redirect()->route('tyro-dashboard.sales-visits.edit', $visit); });
-
-    // Force modern UI for Sales Visits by overriding Tyro's resource paths
-    Route::get('/resources/visits/create', [\App\Http\Controllers\Dashboard\SalesVisitController::class, 'create'])->name('resources.visits.create');
-    Route::get('/resources/visits/{visit}/edit', [\App\Http\Controllers\Dashboard\SalesVisitController::class, 'edit'])->name('resources.visits.edit');
+    // Redirect legacy resource paths to the modern Sales Visit UI
+    Route::get('/resources/visits/create', function () {
+        return redirect()->route('tyro-dashboard.sales-visits.create');
+    })->name('resources.visits.create');
+    Route::get('/resources/visits/{visit}/edit', function (\App\Models\Visit $visit) {
+        return redirect()->route('tyro-dashboard.sales-visits.create', ['lead_id' => $visit->lead_id]);
+    })->name('resources.visits.edit');
 
     Route::get('/reports/sales', [\App\Http\Controllers\Dashboard\ReportController::class , 'sales'])->name('reports.sales');
     Route::get('/reports/visits', [\App\Http\Controllers\Dashboard\ReportController::class , 'visits'])->name('reports.visits');

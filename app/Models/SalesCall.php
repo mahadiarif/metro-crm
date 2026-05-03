@@ -56,6 +56,7 @@ class SalesCall extends Model
     protected $casts = [
         'called_at' => 'datetime',
         'next_call_at' => 'datetime',
+        'next_followup_date' => 'date',
     ];
 
     /**

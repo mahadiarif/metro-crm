@@ -18,6 +18,7 @@ class SalesVisitController extends Controller
     {
         $tab = $request->get('tab', 'today'); // today, history
         $filter = $request->get('filter', 'all');
+        $search = trim((string) $request->get('search', ''));
 
         // 1. Core Metrics
         $totalVisits = SalesVisitEntry::count();
@@ -31,15 +32,24 @@ class SalesVisitController extends Controller
         // 2. Specialized Queues for UI Tabs
         $today = Carbon::today();
         
-        $todayVisits = SalesVisitEntry::whereDate('visit_date', $today)->with(['dailySalesVisit', 'marketingExe'])->get();
-        $overdueVisits = SalesVisitEntry::where('status', 'pending')->whereDate('visit_date', '<', $today)->get();
+        $todayVisits = SalesVisitEntry::whereDate('visit_date', $today)
+            ->with(['dailySalesVisit.lead', 'marketingExe'])
+            ->when($search !== '', fn ($q) => $this->applyVisitSearch($q, $search))
+            ->get();
+
+        $overdueVisits = SalesVisitEntry::where('status', 'follow_up')
+            ->whereDate('visit_date', '<', $today)
+            ->with(['dailySalesVisit.lead', 'marketingExe'])
+            ->when($search !== '', fn ($q) => $this->applyVisitSearch($q, $search))
+            ->get();
         
-        $satisfiedVisits = SalesVisitEntry::where('status', 'satisfied')->count();
+        $satisfiedVisits = SalesVisitEntry::where('status', 'service_request')->count();
         $followUpsCount = SalesVisitEntry::where('status', 'follow_up')->count();
 
         // 3. History Logs
-        $historyQuery = SalesVisitEntry::with(['dailySalesVisit', 'marketingExe'])
-            ->latest('visit_date');
+        $historyQuery = SalesVisitEntry::with(['dailySalesVisit.lead', 'marketingExe'])
+            ->latest('visit_date')
+            ->when($search !== '', fn ($q) => $this->applyVisitSearch($q, $search));
 
         if ($filter !== 'all') {
             $historyQuery->where('status', $filter);
@@ -85,5 +95,45 @@ class SalesVisitController extends Controller
         // Standard Resource Fallback - High Priority for Expert Deployment
         return redirect()->route('tyro-dashboard.sales-visits.index')
             ->with('success', 'Visit data processed successfully through the unified action engine.');
+    }
+
+    public function show(SalesVisitEntry $salesVisit)
+    {
+        return redirect()->route('tyro-dashboard.sales-visits.edit', $salesVisit);
+    }
+
+    public function edit(SalesVisitEntry $salesVisit)
+    {
+        return view('dashboard.sales-visits.create', [
+            'lead' => $salesVisit->dailySalesVisit?->lead,
+            'visit' => $salesVisit,
+        ]);
+    }
+
+    public function update(Request $request, SalesVisitEntry $salesVisit)
+    {
+        return redirect()->route('tyro-dashboard.sales-visits.edit', $salesVisit)
+            ->with('success', 'Use the sales visit form to update this record.');
+    }
+
+    public function destroy(SalesVisitEntry $salesVisit)
+    {
+        $salesVisit->delete();
+
+        return redirect()->route('tyro-dashboard.sales-visits.index')
+            ->with('success', 'Sales visit deleted successfully.');
+    }
+
+    private function applyVisitSearch($query, string $search)
+    {
+        return $query->where(function ($q) use ($search) {
+            $q->where('status', 'like', '%' . $search . '%')
+                ->orWhere('notes', 'like', '%' . $search . '%')
+                ->orWhereHas('dailySalesVisit.lead', function ($leadQuery) use ($search) {
+                    $leadQuery->where('company_name', 'like', '%' . $search . '%')
+                        ->orWhere('client_name', 'like', '%' . $search . '%')
+                        ->orWhere('phone', 'like', '%' . $search . '%');
+                });
+        });
     }
 }

@@ -30,7 +30,8 @@
     <div class="card-body" style="padding: 0;">
         @livewire('sales-call.outcome-modal', [
             'leadId' => request('lead_id'), 
-            'isModalOpen' => true
+            'isModalOpen' => true,
+            'callId' => $call->id ?? null
         ])
     </div>
 </div>

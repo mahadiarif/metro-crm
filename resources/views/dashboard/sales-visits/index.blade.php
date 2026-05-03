@@ -102,6 +102,7 @@
                 <tr>
                     <th>Lead / Company</th>
                     <th>Status</th>
+                    <th>Visit #</th>
                     <th>Feedback</th>
                     <th>Executive</th>
                     <th>When</th>
@@ -117,13 +118,18 @@
                         <div style="font-size: 0.75rem; color: var(--muted-foreground);">{{ $visit->dailySalesVisit->lead->client_name ?? '' }}</div>
                     </td>
                     <td>
-                        <span class="badge {{ $visit->status === 'satisfied' ? 'badge-success' : 'badge-secondary' }}">
+                        <span class="badge {{ $visit->status === 'service_request' ? 'badge-success' : 'badge-secondary' }}">
                             {{ Str::headline($visit->status) }}
                         </span>
                     </td>
                     <td>
+                        <span class="badge badge-outline">
+                            {{ $visit->visit_number }}{{ match($visit->visit_number) { 1=>'st', 2=>'nd', 3=>'rd', default=>'th' } }}
+                        </span>
+                    </td>
+                    <td>
                         <div style="font-size: 0.8125rem; max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                            {{ $visit->feedback ?: 'No feedback provided' }}
+                            {{ $visit->notes ?: 'No notes provided' }}
                         </div>
                     </td>
                     <td>{{ $visit->marketingExe->name ?? 'System' }}</td>
@@ -136,12 +142,26 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                                 </svg>
                             </a>
+                            <a href="{{ route('tyro-dashboard.sales-visits.edit', $visit->id) }}" class="btn btn-icon btn-ghost" title="Edit">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5m-1.414-9.414a2 2 0 1 1 2.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                            </a>
+                            <form action="{{ route('tyro-dashboard.sales-visits.destroy', $visit->id) }}" method="POST" style="display: inline-flex;" onsubmit="return confirm('Delete this sales visit?')">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn btn-icon btn-ghost text-danger" title="Delete">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3" />
+                                    </svg>
+                                </button>
+                            </form>
                         </div>
                     </td>
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="6" style="text-align: center; padding: 3rem; color: var(--muted-foreground);">
+                    <td colspan="7" style="text-align: center; padding: 3rem; color: var(--muted-foreground);">
                         <div style="margin-bottom: 1rem;">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 48px; opacity: 0.2; margin: 0 auto;">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -156,7 +176,7 @@
     </div>
     @if($visitHistory->hasPages())
     <div class="card-footer">
-        {{ $visitHistory->links() }}
+        {{ $visitHistory->links('tyro-dashboard::partials.pagination') }}
     </div>
     @endif
 </div>
