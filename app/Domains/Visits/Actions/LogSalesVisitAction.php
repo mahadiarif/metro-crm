@@ -119,7 +119,21 @@ class LogSalesVisitAction
                 }
             }
 
-            // 5. Native Multi-Service Status Updates (Legacy Compatibility)
+            // 5. Native Multi-Service Status Updates & Dynamic Interested Services
+            if (isset($data['interested_services']) && is_array($data['interested_services'])) {
+                foreach ($data['interested_services'] as $svc) {
+                    if (empty($svc['service_id'])) continue;
+                    
+                    LeadServiceStatus::updateOrCreate(
+                        ['lead_id' => $leadId, 'service_id' => $svc['service_id']],
+                        [
+                            'status' => $svc['status'] ?? 'interested',
+                            'current_usage' => $svc['details'] ?? null
+                        ]
+                    );
+                }
+            }
+
             if (isset($data['service_statuses'])) {
                 foreach ($data['service_statuses'] as $serviceId => $serviceData) {
                     // Handle both flat string status (legacy/simple) and structured array (expert)
